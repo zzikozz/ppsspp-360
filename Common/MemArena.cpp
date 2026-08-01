@@ -203,7 +203,9 @@ void *MemArena::CreateView(s64 offset, size_t size, void *base)
 void MemArena::ReleaseView(void* view, size_t size)
 {
 #ifdef _WIN32
-#ifndef _XBOX
+#ifdef _XBOX
+	VirtualFree(view, 0, MEM_RELEASE);
+#else
 	UnmapViewOfFile(view);
 #endif
 #elif defined(__SYMBIAN32__)
