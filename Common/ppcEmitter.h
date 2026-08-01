@@ -29,6 +29,10 @@
 #include "MemoryUtil.h"
 #include <vector>
 
+#ifdef _XBOX
+extern "C" void bfree(void* ptr);
+#endif
+
 #undef _IP
 #undef R0
 #undef _SP
@@ -440,7 +444,28 @@ namespace PpcGen
 		void VCMPGEFP	(PPCReg Rd, PPCReg Ra);  // Vector Compare Greater-Than-or-Equal-to Floating Point  
 		void VCMPGTFP	(PPCReg Rd, PPCReg Ra);  // Vector Compare Greater-Than Floating Point  
 
-		
+		// AltiVec / VMX128
+		void LVX   (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Indexed
+		void LVW   (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Word
+		void LVH   (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Halfword
+		void LVB   (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Byte
+		void STVX  (PPCReg d, PPCReg a, PPCReg b);  // Store Vector Indexed
+		void STVW  (PPCReg d, PPCReg a, PPCReg b);  // Store Vector Word
+		void STVH  (PPCReg d, PPCReg a, PPCReg b);  // Store Vector Halfword
+		void STVB  (PPCReg d, PPCReg a, PPCReg b);  // Store Vector Byte
+		void LVSL  (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Shifted Left
+		void LVSR  (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Shifted Right
+		void LVSIVCT(PPCReg d, PPCReg a, PPCReg b); // Load Vector Shifted Immediate VCount Time
+		void LVSI  (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Shifted Immediate
+		void LVLX  (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Locked
+		void LVLH  (PPCReg d, PPCReg a, PPCReg b);
+		void LVLW  (PPCReg d, PPCReg a, PPCReg b);
+		void LVLV  (PPCReg d, PPCReg a, PPCReg b);
+		void LVLXL (PPCReg d, PPCReg a, PPCReg b);
+		void LVLHX (PPCReg d, PPCReg a, PPCReg b);
+		void LVLWX (PPCReg d, PPCReg a, PPCReg b);
+		void LVLVX (PPCReg d, PPCReg a, PPCReg b);
+		void LVSRR (PPCReg d, PPCReg a, PPCReg b);
 
 		void QuickCallFunction(void *func);
 	protected:
@@ -480,6 +505,13 @@ namespace PpcGen
 		// Call this when shutting down. Don't rely on the destructor, even though it'll do the job.
 		void FreeCodeSpace()
 		{
+			if (region) {
+#ifdef _XBOX
+				bfree(region);
+#else
+				FreeMemoryPages(region, region_size);
+#endif
+			}
 			region = NULL;
 			region_size = 0;
 		}

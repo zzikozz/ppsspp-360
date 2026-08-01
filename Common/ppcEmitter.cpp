@@ -923,5 +923,27 @@ namespace PpcGen {
 		__emit(0x4C00012C);//isync
 	}
 
+	// AltiVec / VMX128
+	void PPCXEmitter::LVX   (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 7, 0); }
+	void PPCXEmitter::LVW   (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 12, 0); }
+	void PPCXEmitter::LVH   (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 11, 0); }
+	void PPCXEmitter::LVB   (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 10, 0); }
+	void PPCXEmitter::STVX  (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 39, 0); }
+	void PPCXEmitter::STVW  (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 44, 0); }
+	void PPCXEmitter::STVH  (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 43, 0); }
+	void PPCXEmitter::STVB  (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 42, 0); }
+	void PPCXEmitter::LVSL  (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 6, 0); }
+	void PPCXEmitter::LVSR  (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 38, 0); }
+	void PPCXEmitter::LVSIVCT(PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 13, 0); }
+	void PPCXEmitter::LVSI  (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 14, 0); }
+	void PPCXEmitter::LVLX  (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 129, 0); }
+	void PPCXEmitter::LVLH  (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 130, 0); }
+	void PPCXEmitter::LVLW  (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 131, 0); }
+	void PPCXEmitter::LVLV  (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 132, 0); }
+	void PPCXEmitter::LVLXL (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 133, 0); }
+	void PPCXEmitter::LVLHX (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 134, 0); }
+	void PPCXEmitter::LVLWX (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 135, 0); }
+	void PPCXEmitter::LVLVX (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 136, 0); }
+	void PPCXEmitter::LVSRR (PPCReg d, PPCReg a, PPCReg b) { X_FORM(31, d, a, b, 137, 0); }
 
 } // namespace
