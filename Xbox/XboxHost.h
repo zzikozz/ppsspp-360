@@ -27,6 +27,7 @@ class XboxHost : public Host
 public:
 	virtual void InitSound(PMixer *mixer);
 	virtual void ShutdownSound();
+	virtual void UpdateSound();
 
 	virtual bool InitGL(std::string *error_message);
 	virtual void ShutdownGL();

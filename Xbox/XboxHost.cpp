@@ -121,6 +121,11 @@ void XboxHost::InitSound(PMixer *mixer) {
 void XboxHost::ShutdownSound() {
 	XAudioShutdown();
 }
+void XboxHost::UpdateSound() {
+	// Buffer refill is driven by the XAudio2 OnBufferEnd callback only.
+	// Calling XAudioUpdate() here would race with the audio thread and
+	// overwrite buffers still queued for playback.
+}
 
 void XboxHost::BeginFrame() {
 	DX9::BeginFrame();
