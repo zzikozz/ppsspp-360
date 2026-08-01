@@ -56,7 +56,7 @@ static int chanQueueMinSizeFactor;
 
 // TODO: Need to replace this with something lockless. Mutexes in the audio pipeline
 // is bad mojo.
-FixedSizeQueue<s16, 512 * 16> outAudioQueue;
+FixedSizeQueue<s16, 512 * 8> outAudioQueue;
 
 bool __gainAudioQueueLock();
 void __releaseAcquiredLock();
@@ -106,10 +106,14 @@ void __AudioInit() {
 	audioHostIntervalUs = (int)(1000000ULL * hostAttemptBlockSize / hwSampleRate);
 
 	eventAudioUpdate = CoreTiming::RegisterEvent("AudioUpdate", &hleAudioUpdate);
+#ifndef _XBOX
 	eventHostAudioUpdate = CoreTiming::RegisterEvent("AudioUpdateHost", &hleHostAudioUpdate);
+#endif
 
 	CoreTiming::ScheduleEvent(usToCycles(audioIntervalUs), eventAudioUpdate, 0);
+#ifndef _XBOX
 	CoreTiming::ScheduleEvent(usToCycles(audioHostIntervalUs), eventHostAudioUpdate, 0);
+#endif
 	for (u32 i = 0; i < PSP_AUDIO_CHANNEL_MAX + 1; i++)
 		chans[i].clear();
 
@@ -128,8 +132,10 @@ void __AudioDoState(PointerWrap &p) {
 
 	p.Do(eventAudioUpdate);
 	CoreTiming::RestoreRegisterEvent(eventAudioUpdate, "AudioUpdate", &hleAudioUpdate);
+#ifndef _XBOX
 	p.Do(eventHostAudioUpdate);
 	CoreTiming::RestoreRegisterEvent(eventHostAudioUpdate, "AudioUpdateHost", &hleHostAudioUpdate);
+#endif
 
 	p.Do(mixFrequency);
 
@@ -444,7 +450,7 @@ inline void __releaseAcquiredLock(){
 
 inline void __blockForAudioQueueLock(){
 	if (g_Config.bAtomicAudioLocks){
-		while ((atomicLock_.test_and_set() == 0)){ }
+		while ((atomicLock_.test_and_set() != 0)){ }
 	} else {
 		mutex_.lock();
 	}
