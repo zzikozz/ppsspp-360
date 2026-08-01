@@ -213,6 +213,12 @@ int sceMp3Decode(u32 mp3, u32 outPcmPtr) {
 					return -1;
 				}
 				__AdjustBGMVolume((s16 *)out, frame.nb_samples * frame.channels);
+#ifdef _XBOX
+				int totalSamples = frame.nb_samples * frame.channels;
+				for (int i = 0; i < totalSamples; i++) {
+					((uint16 *)out)[i] = bswap16(((uint16 *)out)[i]);
+				}
+#endif
 
 				//av_samples_copy(&audio_dst_data, frame.data, 0, 0, frame.nb_samples, frame.channels, (AVSampleFormat)frame.format);
 

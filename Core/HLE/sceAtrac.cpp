@@ -675,6 +675,18 @@ u32 sceAtracDecodeData(int atracID, u32 outAddr, u32 numSamplesAddr, u32 finishF
 	u32 finish = 0;
 	int remains = 0;
 	int ret = _AtracDecodeData(atracID, Memory::GetPointer(outAddr), &numSamples, &finish, &remains);
+#ifdef _XBOX
+	if (ret == 0) {
+		Atrac *atrac = getAtrac(atracID);
+		if (atrac && numSamples > 0) {
+			int totalSamples = numSamples * atrac->atracOutputChannels;
+			u16 *ptr = (u16 *)Memory::GetPointer(outAddr);
+			for (int i = 0; i < totalSamples; i++) {
+				ptr[i] = bswap16(ptr[i]);
+			}
+		}
+	}
+#endif
 	if (ret != (int)ATRAC_ERROR_BAD_ATRACID && ret != (int)ATRAC_ERROR_NO_DATA) {
 		Memory::Write_U32(numSamples, numSamplesAddr);
 		Memory::Write_U32(finish, finishFlagAddr);

@@ -144,6 +144,12 @@ bool SimpleAT3::Decode(void* inbuf, int inbytes, uint8_t *outbuf, int *outbytes)
 		}
 		// We always convert to stereo.
 		__AdjustBGMVolume((s16 *)outbuf, numSamples * 2);
+#ifdef _XBOX
+		int totalSamples = numSamples * 2;
+		for (int i = 0; i < totalSamples; i++) {
+			((uint16 *)outbuf)[i] = bswap16(((uint16 *)outbuf)[i]);
+		}
+#endif
 	}
 
 	return true;

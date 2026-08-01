@@ -475,7 +475,11 @@ void SasInstance::Mix(u32 outAddr, u32 inAddr, int leftVol, int rightVol) {
 
 	// Alright, all voices mixed. Let's convert and clip, and at the same time, wipe mixBuffer for next time. Could also dither.
 	s16 *outp = (s16 *)Memory::GetPointer(outAddr);
+#ifdef _XBOX
+	const s16_le *inp = inAddr ? (s16_le*)Memory::GetPointer(inAddr) : 0;
+#else
 	const s16 *inp = inAddr ? (s16*)Memory::GetPointer(inAddr) : 0;
+#endif
 	if (outputMode == 0) {
 		if (inp) {
 			for (int i = 0; i < grainSize * 2; i += 2) {
@@ -498,6 +502,14 @@ void SasInstance::Mix(u32 outAddr, u32 inAddr, int leftVol, int rightVol) {
 			*outp++ = clamp_s16(sampleL);
 		}
 	}
+#ifdef _XBOX
+	{
+		int total = grainSize * (outputMode == 0 ? 2 : 1);
+		u16 *p = (u16 *)Memory::GetPointer(outAddr);
+		for (int i = 0; i < total; i++)
+			p[i] = bswap16(p[i]);
+	}
+#endif
 	memset(mixBuffer, 0, grainSize * sizeof(int) * 2);
 	memset(sendBuffer, 0, grainSize * sizeof(int) * 2);
 
