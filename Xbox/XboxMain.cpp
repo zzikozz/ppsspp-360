@@ -13,6 +13,7 @@
 #include "Core/HLE/sceUtility.h"
 #include "Core/HLE/sceCtrl.h"
 #include "Core/MIPS/MIPS.h"
+#include "GPU/GPUState.h"
 #include "Core/Host.h"
 #include "Log.h"
 #include "LogManager.h"
@@ -26,6 +27,8 @@
 #include "XinputDevice.h"
 
 #include "XboxOnScreenDisplay.h"
+#include "XboxFpsOverlay.h"
+#include "XboxLauncher.h"
 #include "Gpu/Directx9/helper/global.h"
 
 XinputDevice XInput;
@@ -183,6 +186,23 @@ std::string System_GetProperty(SystemProperty prop) { return ""; }
 
 extern bool useVsync;
 
+// No devkit / XBDM available on this console, so there's no debugger to catch
+// unhandled exceptions. This SEH filter runs before the process is killed and
+// writes the exception code + faulting address to a log file we can retrieve
+// over FTP afterwards. It won't catch a hard kernel-level fault (those happen
+// before any of our code runs), but it will catch normal access violations,
+// bad pointer derefs, etc. happening inside the emulation loop below.
+static int LogCrashAndContinue(unsigned int code, struct _EXCEPTION_POINTERS *ep)
+{
+	FILE *f = fopen("game:\\crash_log.txt", "a");
+	if (f) {
+		fprintf(f, "FATAL EXCEPTION: code=0x%08X at address=0x%p\r\n",
+			code, ep->ExceptionRecord->ExceptionAddress);
+		fclose(f);
+	}
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+
 int main(int argc, const char* argv[])
 {
 	bool fullLog = true;
@@ -202,156 +222,6 @@ int main(int argc, const char* argv[])
 
 	useJit = true;
 	
-	//bootFilename = "game:\\AI Go.iso";
-	//bootFilename = "game:\\PSP_-_Puzzle_Bobble.ISO";
-	//bootFilename = "game:\\cube.elf";
-	//bootFilename = "game:\\string.prx";
-	//bootFilename = "game:\\PSP\\GAME\\PSPRICK\\EBOOT.PBP";
-
-	//bootFilename = "game:\\wippure.iso";
-
-	//bootFilename = "game:\\nl-wipeoutp.iso";
-	//bootFilename = "game:\\TRSI-TOE.ISO";
-	//bootFilename = "game:\\nl-mhf2.iso";
-	//bootFilename = "game:\\pa-sstars.iso";
-	//bootFilename = "game:\\as-pmcee.iso";
-	//bootFilename = "game:\\Barykelo-FF3.ISO";
-	
-	// bootFilename = "game:\\tests\\video\\pmf\\pmf.prx"; // FAIL
-	// bootFilename = "game:\\tests\\video\\mpeg\\basic.prx"; // FAIL
-
-	//bootFilename = "game:\\psp.iso";
-	//bootFilename = "game:\\[Psp] - Ridge Racer 2.cso";
-	//bootFilename = "game:\\fantasia2.cso";
-	//bootFilename = "game:\\Monster Hunter 3rd Patcher Fr.iso";
-
-	//bootFilename = "game:\\Dragon Ball Z Tenkaichi Tag Team.cso";
-	//bootFilename = "game:\\Crash Tag Team Racing.cso";
-
-	//bootFilename = "game:\\em-ff7cc.iso";
-
-//	bootFilename = "game:\\ind-gowgsp.iso";
-
-	//bootFilename = "game:\\PSPKiNG-pfg.ISO";
-
-	//bootFilename = "game:\\2ch-disg.iso";
-	//bootFilename = "game:\\God of War Chains of Olympus [Rip].cso";
-	//bootFilename = "game:\\Bleach.iso";
-	//bootFilename = "game:\\0-khbbs.iso";
-	//bootFilename = "game:\\Castlevania Dracula X Chronicle.cso";
-	
-	//bootFilename = "game:\\pgs-bof3.iso";
-
-	//bootFilename = "game:\\wkco-rant.iso";
-
-	//bootFilename = "game:\\Barykelo-FF3.ISO";
-	bootFilename = "game:\\psp.iso";
-	//bootFilename = "game:\\psy-scbd.iso";
-
-	//bootFilename = "game:\\pspking-d012dff.ISO";
-	//bootFilename = "game:\\et-brave.iso";
-
-	
-	//bootFilename = "game:\\b-valpro.iso";
-
-	//bootFilename = "game:\\b-valpro.iso";
-
-	//bootFilename = "game:\\pspking-lssh.ISO";
-
-	//bootFilename = "game:\\psp.iso";
-	//bootFilename = "game:\\psy-sre.iso";
-	
-	//bootFilename = "game:\\pspking-nsunh3.ISO";
-	//bootFilename = "game:\\naruto.ISO";
-
-	// Savedata tests
-	//bootFilename = "game:\\tests\\utility\\savedata\\autosave.prx"; //  Same as result as pc version => Fail ?	
-	//bootFilename = "game:\\tests\\utility\\savedata\\filelist.prx"; // PASS
-	// bootFilename = "game:\\tests\\utility\\savedata\\getsize.prx"; // PASS
-	// bootFilename = "game:\\tests\\utility\\savedata\\idlist.prx"; // PASS
-	// bootFilename = "game:\\tests\\utility\\savedata\\makedata.prx"; // Same as result as pc version => Fail ?
-	// bootFilename = "game:\\tests\\utility\\savedata\\sizes.prx"; // Same as result as pc version => Fail ?
-
-	// bootFilename = "game:\\tests\\utility\\systemparam\\systemparam.prx"; // PASS
-
-	// bootFilename = "game:\\tests\\font\\fonttest.prx";
-
-	// bootFilename = "game:\\tests\\mstick\\mstick.prx"; // PASS
-
-	// bootFilename = "game:\\tests\\threads\\lwmutex\\create.prx"; // PASS
-	// bootFilename = "game:\\tests\\threads\\lwmutex\\delete.prx"; // PASS
-	// bootFilename = "game:\\tests\\threads\\lwmutex\\lock.prx"; // PASS
-	// bootFilename = "game:\\tests\\threads\\lwmutex\\priority.prx"; // PASS
-	// bootFilename = "game:\\tests\\threads\\lwmutex\\refer.prx"; // PASS
-	// bootFilename = "game:\\tests\\threads\\lwmutex\\try.prx"; // PASS
-	// bootFilename = "game:\\tests\\threads\\lwmutex\\try600.prx"; // PASS
-	// bootFilename = "game:\\tests\\threads\\lwmutex\\unlock.prx"; // PASS
-
-	// bootFilename = "game:\\tests\\threads\\mutex\\cancel.prx";	// FAIL (same as PC ?)
-	// bootFilename = "game:\\tests\\threads\\mutex\\create.prx";	// PASS
-	// bootFilename = "game:\\tests\\threads\\mutex\\delete.prx";	// PASS
-	// bootFilename = "game:\\tests\\threads\\mutex\\lock.prx";		// PASS
-	// bootFilename = "game:\\tests\\threads\\mutex\\priority.prx";	// PASS
-	// bootFilename = "game:\\tests\\threads\\mutex\\refer.prx";	// PASS
-	// bootFilename = "game:\\tests\\threads\\mutex\\try.prx";		// PASS
-	// bootFilename = "game:\\tests\\threads\\mutex\\unlock.prx";	// PASS
-
-	//	bootFilename = "game:\\demos\\celshading.elf";			// FAIL
-	//bootFilename = "game:\\demos\\cubevfpu.prx";			// FAIL
-	//bootFilename = "game:\\tests\\cpu\\vfpu\\colors.prx";	// FAIL
-	//	bootFilename = "game:\\tests\\cpu\\vfpu\\convert.prx";	// FAIL
-	//	bootFilename = "game:\\tests\\cpu\\vfpu\\gum.prx";		// FAIL
-	//	bootFilename = "game:\\tests\\cpu\\vfpu\\matrix.prx";	// FAIL
-	//	bootFilename = "game:\\tests\\cpu\\vfpu\\prefixes.prx";	// FAIL
-	//  bootFilename = "game:\\tests\\cpu\\vfpu\\vector.prx";	// FAIL
-	//bootFilename = "game:\\tests\\gpu\\reflection\\reflection.prx";	// FAIL
-
-	
-	
-	//bootFilename = "game:\\cube.elf";
-	//bootFilename = "game:\\demos\\celshading.elf";			// FAIL
-
-	//bootFilename = "game:\\demos\\lights.pbp";			// FAIL
-	//bootFilename = "game:\\demos\\clut.pbp";			// FAIL
-	//bootFilename = "game:\\demos\\envmap.pbp";			// FAIL
-
-	//bootFilename = "game:\\demos\\morphskin.elf";
-
-	//bootFilename = "game:\\demos\\morph.elf";
-
-	//bootFilename = "game:\\demos\\reflection.pbp";
-
-	//bootFilename = "game:\\demos\\shadowprojection.elf";
-
-	//bootFilename = "game:\\demos\\skinning.pbp";
-
-//	bootFilename = "game:\\demos\\3dstudio.prx";
-
-
-	//bootFilename = "game:\\demos\\ortho.pbp";
-
-	//bootFilename = "game:\\demos\\rendertarget.elf";
-
-	//bootFilename = "game:\\psy-ff1e.iso";
-
-	//bootFilename = "game:\\b-gowcoo.iso";
-
-	//bootFilename = "game:\\0-mgspw.iso";
-
-	//bootFilename = "game:\\psy-mmhx.iso"; // infinite loop at access ...
-
-	//bootFilename = "game:\\enigmaconsole-castelvaniax.iso";
-
-
-	//bootFilename = "game:\\tests\\cpu\\fpu\\fpu.prx";	// FAIL
-
-
-	//bootFilename = "game:\\resistance.retribution.eur.psp.iso";
-
-	/*
-	swap32_struct_t l;
-	printf("Szir of u32_le: %d\r\n", sizeof(u32_le));
-	*/
 	DX9::DirectxInit(NULL);
 
 	XboxHost *xbhost = new XboxHost();
@@ -361,52 +231,24 @@ int main(int argc, const char* argv[])
 	bool glWorking = host->InitGL(&error_string);
 
 	LogManager::Init();
+	LogManager::GetInstance()->ChangeFileLog("game:\\ppsspp_log.txt");
 
-	CoreParameter coreParameter;
-
-	
+	// Load config first so the launcher can use saved settings
 	g_Config.Load("game:\\ppsspp.ini", "game:\\controls.ini");
 
-#if 1
-	//coreParameter.cpuCore = CPU_INTERPRETER;
-	coreParameter.cpuCore = CPU_JIT;
-	coreParameter.gpuCore = GPU_DIRECTX9;
-	coreParameter.enableSound = true;
-	coreParameter.fileToStart = bootFilename;
-	coreParameter.mountIso = "";
-	coreParameter.startPaused = false;
-//	coreParameter.enableDebugging = false;
-	coreParameter.printfEmuLog = true;
-	coreParameter.headLess = false;
-	coreParameter.renderWidth = 1280;
-	coreParameter.renderHeight = 720;
-	coreParameter.outputWidth = 480*2;
-	coreParameter.outputHeight = 272*2;
-	coreParameter.pixelWidth = 1280;
-	coreParameter.pixelHeight = 720;
-	coreParameter.unthrottle = true;
-
-#ifdef _DEBUG
+	g_Config.memCardDirectory = "game:\\memstick\\";
+	g_Config.flash0Directory = "game:\\flash0\\";
 	g_Config.bEnableLogging = true;
-#endif
 	g_Config.bEnableSound = true;
+	g_Config.bLowLatencyAudio = true;
 	g_Config.bFirstRun = false;
 	g_Config.bIgnoreBadMemAccess = true;
 	g_Config.bFastMemory = true;
-	// Never report from tests.
 	g_Config.sReportHost = "";
 	g_Config.bAutoSaveSymbolMap = false;
-	/*
-	FB_NON_BUFFERED_MODE	= 0,
-	FB_BUFFERED_MODE		= 1,
-	FB_READFBOMEMORY_CPU	= 2,
-	FB_READFBOMEMORY_GPU	= 3,
-	*/
 	g_Config.iRenderingMode = 0;
 	g_Config.bHardwareTransform = true;
-
 	g_Config.iAnisotropyLevel = 8;
-
 	g_Config.bVertexCache = false;
 	g_Config.bTrueColor = true;
 	g_Config.iLanguage = PSP_SYSTEMPARAM_LANGUAGE_ENGLISH;
@@ -418,57 +260,228 @@ int main(int argc, const char* argv[])
 	g_Config.iButtonPreference = PSP_SYSTEMPARAM_BUTTON_CROSS;
 	g_Config.iLockParentalLevel = 9;
 	g_Config.iShowFPSCounter = true;
-
-#if 1
 	g_Config.bSeparateCPUThread = true;
 	g_Config.bSeparateIOThread = true;
-#else
-	g_Config.bSeparateCPUThread = false;
-	g_Config.bSeparateIOThread = false;
-#endif
-
 	g_Config.iTexScalingLevel = 0;
 	g_Config.iTexScalingType = 0;
 	g_Config.iNumWorkerThreads = 5;
-
-
-	// Wait
 	g_Config.iFpsLimit = 60;
-
-	// Needed for gow
 	g_Config.iForceMaxEmulatedFPS = 60;
-
-	// Auto frameskip
 	g_Config.iFrameSkip = 0;
-
-	// Speed Hack ?
 	g_Config.iLockedCPUSpeed = 111;
-#else	
-	coreParameter.renderWidth = 1280;
-	coreParameter.renderHeight = 720;
-	coreParameter.outputWidth = 480*2;
-	coreParameter.outputHeight = 272*2;
-	coreParameter.pixelWidth = 1280;
-	coreParameter.pixelHeight = 720;	
-	
-	coreParameter.cpuCore = CPU_JIT;
-	coreParameter.gpuCore = GPU_DIRECTX9;
-#endif
 
-	coreParameter.fileToStart = bootFilename;
-
-	g_Config.memCardDirectory = "game:\\memstick\\";
-	g_Config.flash0Directory = "game:\\flash0\\";
-
-
-	// Set ...
+	// Save after applying Xbox defaults (user can edit via FTP)
 	g_Config.Save();
 
-	if (!PSP_Init(coreParameter, &error_string)) {
-		fprintf(stderr, "Failed to start %s. Error: %s\n", coreParameter.fileToStart.c_str(), error_string.c_str());
-		printf("TESTERROR\n");
-		return 1;
+	// ---------------------------------------------------------------
+	// Game launcher + PSP emulation (PSP restarted on re-select)
+	// ---------------------------------------------------------------
+
+	XboxLauncher launcher;
+	launcher.Init();
+
+	bool pspInited = false;
+	std::string currentGame;
+
+	while (true) {
+		// ---- Launcher loop (runs at least once, repeats after Exit to Menu) ----
+		while (launcher.IsActive()) {
+			launcher.Update();
+			DX9::BeginFrame();
+			launcher.Render();
+			DX9::EndFrame();
+			DX9::SwapBuffers();
+			DX9::pD3Ddevice->SetVertexShader(NULL);
+			DX9::pD3Ddevice->SetPixelShader(NULL);
+			DX9::pD3Ddevice->SetVertexDeclaration(NULL);
+			static DWORD launcherTick = 0;
+			DWORD t = GetTickCount();
+			if (launcherTick > 0) {
+				DWORD elapsed = t - launcherTick;
+				if (elapsed < 15) {
+					Sleep(16 - (int)elapsed);
+				}
+			}
+			launcherTick = GetTickCount();
+		}
+
+		// If no game selected, user wants to exit
+		if (launcher.GetSelectedGame().empty()) {
+			if (launcher.WantsSettings()) {
+				launcher.SetActive(true);
+				continue;
+			}
+			break;
+		}
+
+		std::string selectedGame = launcher.GetSelectedGame();
+
+		// ---- Init or switch PSP game ----
+		if (!pspInited) {
+			// First launch: init fresh
+			CoreParameter coreParameter;
+			coreParameter.cpuCore = CPU_JIT;
+			coreParameter.gpuCore = GPU_DIRECTX9;
+			coreParameter.enableSound = g_Config.bEnableSound;
+			coreParameter.fileToStart = selectedGame;
+			coreParameter.mountIso = "";
+			coreParameter.startPaused = false;
+			coreParameter.printfEmuLog = true;
+			coreParameter.headLess = false;
+			coreParameter.renderWidth = 1280;
+			coreParameter.renderHeight = 720;
+			coreParameter.outputWidth = 480*2;
+			coreParameter.outputHeight = 272*2;
+			coreParameter.pixelWidth = 1280;
+			coreParameter.pixelHeight = 720;
+			coreParameter.unthrottle = false;
+
+			if (!PSP_Init(coreParameter, &error_string)) {
+				fprintf(stderr, "Failed to start %s. Error: %s\n", selectedGame.c_str(), error_string.c_str());
+				printf("TESTERROR\n");
+				launcher.SetActive(true);
+				continue;
+			}
+			pspInited = true;
+			currentGame = selectedGame;
+			host->BootDone();
+			xbhost->BeginFrame();
+		} else {
+			// Full restart (same game or different game)
+			PSP_Shutdown();
+
+			CoreParameter coreParam;
+			coreParam.cpuCore = CPU_JIT;
+			coreParam.gpuCore = GPU_DIRECTX9;
+			coreParam.enableSound = g_Config.bEnableSound;
+			coreParam.fileToStart = selectedGame;
+			coreParam.mountIso = "";
+			coreParam.startPaused = false;
+			coreParam.printfEmuLog = true;
+			coreParam.headLess = false;
+			coreParam.renderWidth = 1280;
+			coreParam.renderHeight = 720;
+			coreParam.outputWidth = 480*2;
+			coreParam.outputHeight = 272*2;
+			coreParam.pixelWidth = 1280;
+			coreParam.pixelHeight = 720;
+			coreParam.unthrottle = false;
+
+			if (!PSP_Init(coreParam, &error_string)) {
+				fprintf(stderr, "Failed to restart %s. Error: %s\n", selectedGame.c_str(), error_string.c_str());
+				launcher.SetActive(true);
+				pspInited = false;
+				continue;
+			}
+			host->BootDone();
+			currentGame = selectedGame;
+		}
+
+		launcher.SetInGameMenuActive(false);
+		xbhost->BeginFrame();
+
+		// ---- Emulation loop ----
+		bool returnToMenu = false;
+		bool igmWasActive = false;
+		__try
+		{
+			coreState = CORE_RUNNING;
+			XINPUT_STATE igmState;
+			ZeroMemory(&igmState, sizeof(igmState));
+			while (coreState == CORE_RUNNING)
+			{
+				XInputGetState(0, &igmState);
+				DWORD igmButtons = igmState.Gamepad.wButtons;
+				BYTE igmLT = igmState.Gamepad.bLeftTrigger;
+				BYTE igmRT = igmState.Gamepad.bRightTrigger;
+
+				bool comboHeld = (igmButtons & XINPUT_GAMEPAD_LEFT_THUMB)
+					&& igmLT > XINPUT_GAMEPAD_TRIGGER_THRESHOLD && igmRT > XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+
+				static bool comboPrev = false;
+				bool comboPressed = comboHeld && !comboPrev;
+				comboPrev = comboHeld;
+
+				if (comboPressed && !launcher.IsInGameMenuActive()) {
+					launcher.SetInGameMenuActive(true);
+				}
+
+				if (launcher.IsInGameMenuActive()) {
+					launcher.UpdateInGameMenu(igmButtons);
+					launcher.RenderInGameMenu();
+
+					xbhost->EndFrame();
+					xbhost->SwapBuffers();
+					xbhost->BeginFrame();
+
+					static DWORD menuTick = 0;
+					DWORD t = GetTickCount();
+					if (menuTick > 0) {
+						DWORD elapsed = t - menuTick;
+						if (elapsed < 15) {
+							Sleep(16 - (int)elapsed);
+						}
+					}
+					menuTick = GetTickCount();
+
+					if (launcher.WantsExitToMenu()) {
+						launcher.ClearExitToMenu();
+						returnToMenu = true;
+						coreState = CORE_ERROR;
+					}
+				} else {
+					// On transition from menu -> game, consume held buttons
+					// so they don't leak through to the emulated PSP
+					if (igmWasActive) {
+						XInput.UpdateState(input_state);
+						input_state.pad_last_buttons = input_state.pad_buttons;
+					}
+
+					u64 nowTicks = CoreTiming::GetTicks();
+					u64 frameTicks = usToCycles(1000000/60);
+
+					PSP_RunLoopUntil(nowTicks + frameTicks);
+
+					UpdateInput(input_state);
+
+					if (coreState == CORE_NEXTFRAME) {
+						coreState = CORE_RUNNING;
+
+						XboxFpsOverlay::DrawFpsOverlay();
+						xbhost->EndFrame();
+						xbhost->SwapBuffers();
+						xbhost->BeginFrame();
+					}
+					igmWasActive = launcher.IsInGameMenuActive();
+				}
+			}
+		}
+		__except (LogCrashAndContinue(GetExceptionCode(), GetExceptionInformation()))
+		{
+			pspInited = false;
+		}
+
+		if (returnToMenu) {
+			launcher.SetActive(true);
+			launcher.SetInGameMenuActive(false);
+			// PSP stays alive - restarted when same game is re-selected
+			continue;
+		}
+		break;
 	}
+
+	// Cleanup
+	if (pspInited) {
+		PSP_Shutdown();
+	}
+	host->ShutdownGL();
+	delete host;
+	host = NULL;
+	xbhost = NULL;
+
+	launcher.Shutdown();
+	return 0;
+}
 
 	host->BootDone();
 

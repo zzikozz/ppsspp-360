@@ -90,7 +90,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Xbox 360'">
-    <LinkIncremental>true</LinkIncremental>
+    <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Optimised|Xbox 360'">
     <LinkIncremental>true</LinkIncremental>
@@ -117,7 +117,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <ExceptionHandling>false</ExceptionHandling>
-      <MinimalRebuild>true</MinimalRebuild>
+      <MinimalRebuild>false</MinimalRebuild>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PreprocessorDefinitions>NO_UNICODE;_DEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX</PreprocessorDefinitions>
@@ -129,8 +129,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)$(ProjectName).pdb</ProgramDatabaseFile>
       <AdditionalDependencies>xapilibd.lib;d3d9d.lib;d3dx9d.lib;xgraphicsd.lib;xboxkrnl.lib;xnetd.lib;xaudiod2.lib;xactd3.lib;x3daudiod.lib;xmcored.lib;xbdm.lib;vcompd.lib;avcodec.lib;avdevice.lib;avformat.lib;avutil.lib;swresample.lib;swscale.lib</AdditionalDependencies>
-      <AdditionalOptions>/BASE:0x92000000 %(AdditionalOptions)</AdditionalOptions>
-      <StackCommitSize>1048576</StackCommitSize>
+      <StackCommitSize>2097152</StackCommitSize>
       <AdditionalLibraryDirectories>$(SolutionDir)\..\ffmpeg\Xbox\ppcD\lib</AdditionalLibraryDirectories>
     </Link>
     <Deploy>
@@ -144,10 +143,10 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Full</Optimization>
       <ExceptionHandling>false</ExceptionHandling>
-      <MinimalRebuild>true</MinimalRebuild>
+      <MinimalRebuild>false</MinimalRebuild>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <PreprocessorDefinitions>_DEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NO_UNICODE;_DEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX</PreprocessorDefinitions>
       <CallAttributedProfiling>Callcap</CallAttributedProfiling>
       <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native;../../ext/zlib</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -155,9 +154,10 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)$(ProjectName).pdb</ProgramDatabaseFile>
-      <AdditionalDependencies>xapilibd.lib;d3d9d.lib;d3dx9d.lib;xgraphicsd.lib;xboxkrnl.lib;xnetd.lib;xaudiod2.lib;xactd3.lib;x3daudiod.lib;xmcored.lib;xbdm.lib;vcompd.lib</AdditionalDependencies>
+      <AdditionalDependencies>xapilibd.lib;d3d9d.lib;d3dx9d.lib;xgraphicsd.lib;xboxkrnl.lib;xnetd.lib;xaudiod2.lib;xactd3.lib;x3daudiod.lib;xmcored.lib;xbdm.lib;vcompd.lib;avcodec.lib;avdevice.lib;avformat.lib;avutil.lib;swresample.lib;swscale.lib</AdditionalDependencies>
       <AdditionalOptions>/BASE:0x92000000 %(AdditionalOptions)</AdditionalOptions>
       <StackCommitSize>524288</StackCommitSize>
+      <AdditionalLibraryDirectories>$(SolutionDir)\..\ffmpeg\Xbox\ppcD\lib</AdditionalLibraryDirectories>
     </Link>
     <Deploy>
       <DeploymentType>CopyToHardDrive</DeploymentType>
@@ -259,6 +259,8 @@
       <SetChecksum>true</SetChecksum>
       <AdditionalDependencies>xapilib.lib;d3d9.lib;d3dx9.lib;xgraphics.lib;xboxkrnl.lib;xnet.lib;xaudio2.lib;xact3.lib;x3daudio.lib;xmcore.lib;vcomp.lib;avcodec.lib;avdevice.lib;avformat.lib;avutil.lib;swresample.lib;swscale.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)\..\ffmpeg\Xbox\ppc\lib</AdditionalLibraryDirectories>
+      <AdditionalOptions>/BASE:0x92000000 %(AdditionalOptions)</AdditionalOptions>
+      <StackCommitSize>1048576</StackCommitSize>
     </Link>
     <Deploy>
       <DeploymentType>CopyToHardDrive</DeploymentType>
@@ -293,6 +295,8 @@
       <SetChecksum>true</SetChecksum>
       <AdditionalDependencies>xapilib.lib;d3d9ltcg.lib;d3dx9.lib;xgraphics.lib;xboxkrnl.lib;xnet.lib;xaudio2.lib;xact3ltcg.lib;x3daudioltcg.lib;xmcoreltcg.lib;vcomp.lib;avcodec.lib;avdevice.lib;avformat.lib;avutil.lib;swresample.lib;swscale.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)\..\..\ffmpeg\Xbox\ppc\lib</AdditionalLibraryDirectories>
+      <AdditionalOptions>/BASE:0x92000000 %(AdditionalOptions)</AdditionalOptions>
+      <StackCommitSize>1048576</StackCommitSize>
     </Link>
     <Deploy>
       <DeploymentType>CopyToHardDrive</DeploymentType>
@@ -335,6 +339,8 @@
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Xbox 360'">CompileAsCpp</CompileAs>
     </ClCompile>
     <ClCompile Include="..\XaudioSound.cpp" />
+    <ClCompile Include="..\XboxFpsOverlay.cpp" />
+    <ClCompile Include="..\XboxLauncher.cpp" />
     <ClCompile Include="..\XboxMain.cpp" />
     <ClCompile Include="..\InputDevice.cpp" />
     <ClCompile Include="..\XboxHost.cpp" />
@@ -369,7 +375,9 @@
     <ClInclude Include="..\Jit\bram.h" />
     <ClInclude Include="..\StubHost.h" />
     <ClInclude Include="..\XaudioSound.h" />
+    <ClInclude Include="..\XboxFpsOverlay.h" />
     <ClInclude Include="..\XboxHost.h" />
+    <ClInclude Include="..\XboxLauncher.h" />
     <ClInclude Include="..\XboxOnScreenDisplay.h" />
     <ClInclude Include="..\XinputDevice.h" />
   </ItemGroup>
