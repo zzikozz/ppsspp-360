@@ -1797,6 +1797,12 @@ int sceAtracLowLevelDecode(int atracID, u32 sourceAddr, u32 sourceBytesConsumedA
 						ERROR_LOG(ME, "swr_convert: Error while converting %d", avret);
 					}
 					__AdjustBGMVolume((s16 *)out, numSamples * atrac->atracOutputChannels);
+#ifdef _XBOX
+					int totalSamples = numSamples * atrac->atracOutputChannels;
+					for (int i = 0; i < totalSamples; i++) {
+						((uint16 *)out)[i] = bswap16(((uint16 *)out)[i]);
+					}
+#endif
 				}
 				av_free_packet(&packet);
 				if (got_frame)

@@ -1453,11 +1453,13 @@ void DIRECTX9_GPU::DoBlockTransfer() {
 		ERROR_LOG_REPORT(G3D, "BlockTransfer: Bad destination transfer address %08x!", dstBasePtr);
 		return;
 	}
-	
+
 	// Do the copy! (Hm, if we detect a drawn video frame (see below) then we could maybe skip this?)
+	// Can use GetPointerUnchecked because we checked the addresses above. We could also avoid them
+	// entirely by walking a couple of pointers...
 	for (int y = 0; y < height; y++) {
-		const u8 *src = Memory::GetPointer(srcBasePtr + ((y + srcY) * srcStride + srcX) * bpp);
-		u8 *dst = Memory::GetPointer(dstBasePtr + ((y + dstY) * dstStride + dstX) * bpp);
+		const u8 *src = Memory::GetPointerUnchecked(srcBasePtr + ((y + srcY) * srcStride + srcX) * bpp);
+		u8 *dst = Memory::GetPointerUnchecked(dstBasePtr + ((y + dstY) * dstStride + dstX) * bpp);
 		memcpy(dst, src, width * bpp);
 	}
 
@@ -1474,7 +1476,7 @@ void DIRECTX9_GPU::DoBlockTransfer() {
 	if (((backBuffer != 0 && dstBasePtr == backBuffer) ||
 		  (displayBuffer != 0 && dstBasePtr == displayBuffer)) &&
 			dstStride == 512 && height == 272) {
-		framebufferManager_.DrawPixels(Memory::GetPointer(dstBasePtr), GE_FORMAT_8888, 512);
+		framebufferManager_.DrawPixels(Memory::GetPointerUnchecked(dstBasePtr), GE_FORMAT_8888, 512);
 	}
 }
 

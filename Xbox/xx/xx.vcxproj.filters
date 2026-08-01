@@ -48,7 +48,7 @@
       <Filter>native%28small%29</Filter>
     </ClCompile>
     <ClCompile Include="..\..\native\ext\stb_image\stb_image.c">
-      <Filter>native%28small%29</Filter>
+      <Filter>native</Filter>
     </ClCompile>
     <ClCompile Include="..\display_xbox.cpp">
       <Filter>native%28small%29</Filter>
@@ -137,6 +137,9 @@
     <ClCompile Include="..\..\native\util\text\parsers.cpp">
       <Filter>native%28small%29</Filter>
     </ClCompile>
+    <ClCompile Include="..\XboxFpsOverlay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Compare.h">
@@ -173,7 +176,10 @@
       <Filter>native%28small%29</Filter>
     </ClInclude>
     <ClInclude Include="..\..\native\ext\stb_image\stb_image.h">
-      <Filter>native%28small%29</Filter>
+      <Filter>native</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\native\ext\stb_truetype\stb_truetype.h">
+      <Filter>native</Filter>
     </ClInclude>
     <ClInclude Include="..\..\native\ext\cityhash\citycrc.h">
       <Filter>native%28small%29</Filter>
@@ -225,6 +231,9 @@
     </ClInclude>
     <ClInclude Include="..\..\native\ext\sha1\sha1.h">
       <Filter>native%28small%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\XboxFpsOverlay.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

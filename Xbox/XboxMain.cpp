@@ -222,6 +222,12 @@ int main(int argc, const char* argv[])
 
 	useJit = true;
 	
+	bootFilename = "game:\\psp.iso";
+
+	/*
+	swap32_struct_t l;
+	printf("Szir of u32_le: %d\r\n", sizeof(u32_le));
+	*/
 	DX9::DirectxInit(NULL);
 
 	XboxHost *xbhost = new XboxHost();
@@ -480,45 +486,6 @@ int main(int argc, const char* argv[])
 	xbhost = NULL;
 
 	launcher.Shutdown();
-	return 0;
-}
-
-	host->BootDone();
-
-	
-	xbhost->BeginFrame();
-
-	coreState = CORE_RUNNING;
-	while (coreState == CORE_RUNNING)
-	{
-
-		// Run for a frame at a time, just because.
-		u64 nowTicks = CoreTiming::GetTicks();
-		u64 frameTicks = usToCycles(1000000/60);
-
-		PSP_RunLoopUntil(nowTicks + frameTicks);
-		//mipsr4k.RunLoopUntil(nowTicks + frameTicks);
-
-		UpdateInput(input_state);
-
-		// If we were rendering, this might be a nice time to do something about it.
-		if (coreState == CORE_NEXTFRAME) {
-			coreState = CORE_RUNNING;
-
-			
-			xbhost->EndFrame();
-			xbhost->SwapBuffers();
-			xbhost->BeginFrame();
-		}
-	}
-
-	host->ShutdownGL();
-	PSP_Shutdown();
-
-	delete host;
-	host = NULL;
-	xbhost = NULL;
-
 	return 0;
 }
 

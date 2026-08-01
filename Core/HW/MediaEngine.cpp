@@ -86,6 +86,9 @@ void ffmpeg_logger(void *, int level, const char *format, va_list va_args) {
 }
 
 bool InitFFmpeg() {
+	avcodec_register_all();
+	av_register_all();
+
 #ifdef _DEBUG
 	av_log_set_level(AV_LOG_VERBOSE);
 #else
@@ -246,8 +249,10 @@ bool MediaEngine::openContext() {
 #ifdef USE_FFMPEG
 	InitFFmpeg();
 
-	if (m_pFormatCtx || !m_pdata)
-			return false;
+	if (m_pFormatCtx || !m_pdata) {
+		ERROR_LOG(ME, "MediaEngine::openContext: m_pFormatCtx=%p, m_pdata=%p", m_pFormatCtx, m_pdata);
+		return false;
+	}
 	m_mpegheaderReadPos = 0;
 	m_decodingsize = 0;
 
@@ -258,11 +263,15 @@ bool MediaEngine::openContext() {
 	m_pFormatCtx->pb = m_pIOContext;
 
 	// Open video file
-	if (avformat_open_input((AVFormatContext**)&m_pFormatCtx, NULL, NULL, NULL) != 0)
+	if (avformat_open_input((AVFormatContext**)&m_pFormatCtx, NULL, NULL, NULL) != 0) {
+		ERROR_LOG(ME, "MediaEngine::openContext: avformat_open_input failed");
 		return false;
+	}
 
-	if (avformat_find_stream_info(m_pFormatCtx, NULL) < 0)
+	if (avformat_find_stream_info(m_pFormatCtx, NULL) < 0) {
+		ERROR_LOG(ME, "MediaEngine::openContext: avformat_find_stream_info failed");
 		return false;
+	}
 
 	if (m_videoStream >= (int)m_pFormatCtx->nb_streams) {
 		WARN_LOG_REPORT(ME, "Bad video stream %d", m_videoStream);
@@ -286,8 +295,10 @@ bool MediaEngine::openContext() {
 
 	// Find the decoder for the video stream
 	AVCodec *pCodec = avcodec_find_decoder(m_pCodecCtx->codec_id);
-	if(pCodec == NULL)
+	if(pCodec == NULL) {
+		ERROR_LOG(ME, "MediaEngine::openContext: avcodec_find_decoder failed for codec_id=%d", m_pCodecCtx->codec_id);
 		return false;
+	}
 
 	// Open codec
 	AVDictionary *optionsDict = 0;
@@ -335,7 +346,7 @@ int MediaEngine::addStreamData(u8* buffer, int addSize) {
 #ifdef USE_FFMPEG
 		if (!m_pFormatCtx) {
 			m_pdata->get_front(m_mpegheader, sizeof(m_mpegheader));
-			s32_be mpegoffset = (*(int*)(m_mpegheader + 8));
+			int mpegoffset = (int)(*(s32_be*)(m_mpegheader + 8));
 			m_pdata->pop_front(0, mpegoffset);
 			openContext();
 		}
@@ -464,7 +475,7 @@ inline void writeVideoLineRGBA(void *destp, const void *srcp, int width) {
 
 	u32 mask = 0x00FFFFFF;
 	for (int i = 0; i < width; ++i) {
-		dest[i] = (src[i]) & mask;
+		dest[i] = src[i] & mask;
 	}
 }
 
@@ -632,6 +643,7 @@ int MediaEngine::getRemainSize() {
 
 int MediaEngine::getAudioSamples(u8* buffer) {
 	if (!m_demux) {
+		WARN_LOG(ME, "getAudioSamples: m_demux is NULL");
 		return 0;
 	}
 	u8 *audioFrame = 0;
@@ -645,8 +657,11 @@ int MediaEngine::getAudioSamples(u8* buffer) {
 
 	if (m_audioContext != NULL) {
 		if (!AT3Decode(m_audioContext, audioFrame, frameSize, &outbytes, buffer)) {
-			ERROR_LOG(ME, "AT3 decode failed during video playback");
+			ERROR_LOG(ME, "AT3 decode failed during video playback, frameSize=%d", frameSize);
 		}
+		DEBUG_LOG(ME, "AT3 decode OK, outbytes=%d", outbytes);
+	} else {
+		ERROR_LOG(ME, "getAudioSamples: m_audioContext is NULL, no audio decoded");
 	}
 
 	if (headerCode1 == 0x24) {
