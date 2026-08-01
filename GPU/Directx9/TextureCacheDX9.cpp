@@ -384,11 +384,11 @@ void *TextureCacheDX9::ReadIndexedTex(int level, u32 texaddr, int bytesPerIndex,
 				break;
 
 			case 2:
-				DeIndexTexture(tmpTexBuf16.data(), (u16 *) tmpTexBuf32.data(), length, clut);
+				DeIndexTexture(tmpTexBuf16.data(), (u16_le *) tmpTexBuf32.data(), length, clut);
 				break;
 
 			case 4:
-				DeIndexTexture(tmpTexBuf16.data(), (u32 *) tmpTexBuf32.data(), length, clut);
+				DeIndexTexture(tmpTexBuf16.data(), (u32_le *) tmpTexBuf32.data(), length, clut);
 				break;
 			}
 		}
@@ -428,7 +428,7 @@ void *TextureCacheDX9::ReadIndexedTex(int level, u32 texaddr, int bytesPerIndex,
 				break;
 
 			case 2:
-				DeIndexTexture(dest32, (u16 *) tmpTexBuf32.data(), length, clut);
+				DeIndexTexture(dest32, (u16_le *) tmpTexBuf32.data(), length, clut);
 				buf = dest32;
 				break;
 
@@ -585,7 +585,6 @@ static void ClutConvertColors(void *dstBuf, const void *srcBuf, u32 dstFmt, int 
 			const u16_le *src = (const u16_le *)srcBuf;
 			u16_le *dst = (u16_le *)dstBuf;
 			for (int i = 0; i < numPixels; i++) {
-				// Already good format
 				u16 rgb = src[i];
 				dst[i] = (rgb & 0xF) | (rgb & 0xF0)<<8 | ( rgb & 0xF00) | ((rgb & 0xF000)>>8);
 			}

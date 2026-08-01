@@ -227,7 +227,7 @@ namespace DX9 {
 
 		float x, y, w, h;
 		CenterRect(&x, &y, &w, &h, 480.0f, 272.0f, (float)PSP_CoreParameter().pixelWidth, (float)PSP_CoreParameter().pixelHeight);
-		DrawActiveTexture(drawPixelsTex_, x, y, w, h, false, 480.0f / 512.0f);
+		DrawActiveTexture(drawPixelsTex_, x, y, w, h, (float)PSP_CoreParameter().pixelWidth, (float)PSP_CoreParameter().pixelHeight, false, 480.0f / 512.0f);
 	}
 
 	// Depth in ogl is between -1;1 we need between 0;1
@@ -377,7 +377,7 @@ namespace DX9 {
 			glstate.depthTest.disable();
 			glstate.colorMask.set(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
 			glstate.stencilTest.enable();
-			glstate.stencilOp.set(GL_KEEP, GL_KEEP, GL_KEEP);  // don't modify stencil§
+			glstate.stencilOp.set(GL_KEEP, GL_KEEP, GL_KEEP);  // don't modify stencilï¿½
 			glstate.stencilFunc.set(GL_GEQUAL, 0xFE, 0xFF);
 			DrawPlainColor(0x00000000);
 			//glstate.stencilFunc.set(GL_LESS, 0x80, 0xFF);
@@ -829,8 +829,8 @@ namespace DX9 {
 			}
 		} else { // But here it shouldn't matter if they do
 			int size = height * stride;
-			const u32 *src32 = (const u32 *)src;
-			u16 *dst16 = (u16 *)dst;
+			const u32_le *src32 = (const u32_le *)src;
+			u16_le *dst16 = (u16_le *)dst;
 			switch (format) {
 			case GE_FORMAT_565: // BGR 565
 				for(int i = 0; i < size; i++) {
@@ -867,10 +867,11 @@ namespace DX9 {
 
 		D3DLOCKED_RECT p;
 		rtt->LockRect(0, &p, NULL, 0);
-		rtt->UnlockRect(0);
 
 		// vfb->fbo->tex is tilled !!!!
 		XGUntileTextureLevel(vfb->width/2, vfb->height/2, 0,  XGGetGpuFormat(D3DFMT_LIN_A8R8G8B8), XGTILE_NONPACKED, data, p.Pitch, NULL, p.pBits, NULL);
+
+		rtt->UnlockRect(0);
 #endif
 	}
 

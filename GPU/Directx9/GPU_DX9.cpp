@@ -475,7 +475,7 @@ void DIRECTX9_GPU::BeginFrame() {
 void DIRECTX9_GPU::BeginFrameInternal() {
 	// Turn off vsync when unthrottled
 	int desiredVSyncInterval = g_Config.bVSync ? 1 : 0;
-	if ((PSP_CoreParameter().unthrottle) || (PSP_CoreParameter().fpsLimit == 1))
+	if ((PSP_CoreParameter().unthrottle) || (PSP_CoreParameter().fpsLimit == 1 && g_Config.iFpsLimit > 60))
 		desiredVSyncInterval = 0;
 	if (desiredVSyncInterval != lastVsync_) {
 		dxstate.SetVSyncInterval(desiredVSyncInterval);

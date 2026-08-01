@@ -419,11 +419,11 @@ void DirectxInit(HWND window) {
 #endif
     d3dpp.MultiSampleType = D3DMULTISAMPLE_NONE;
     d3dpp.MultiSampleQuality = 0;
-    d3dpp.BackBufferCount = 1;
+    d3dpp.BackBufferCount = 2;
     d3dpp.EnableAutoDepthStencil = TRUE;
     d3dpp.AutoDepthStencilFormat = D3DFMT_D24S8;
     d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-	d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+	d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 	//d3dpp.PresentationInterval = (useVsync == true)?D3DPRESENT_INTERVAL_ONE:D3DPRESENT_INTERVAL_IMMEDIATE;
 	//d3dpp.RingBufferParameters = d3dr;
 
@@ -579,8 +579,7 @@ void SwapBuffers() {
 #ifndef USE_PREDICATED_TILLING
 	pD3Ddevice->Present(NULL, NULL, NULL, NULL);
 #else
-	pD3Ddevice->SynchronizeToPresentationInterval();
-    pD3Ddevice->Swap( pFrontBufferTexture, NULL );
+	pD3Ddevice->Swap( pFrontBufferTexture, NULL );
 #endif
 }
 

@@ -929,7 +929,7 @@ void GetIndexBoundsDX9(void *inds, int count, u32 vertType, u16 *indexLowerBound
 				lowerBound = ind8[i];
 		}
 	} else if (idx == GE_VTYPE_IDX_16BIT) {
-		const u16 *ind16 = (const u16*)inds;
+		const u16_le *ind16 = (const u16_le*)inds;
 		for (int i = 0; i < count; i++) {
 			if (ind16[i] > upperBound)
 				upperBound = ind16[i];
@@ -1316,7 +1316,7 @@ void VertexDecoderJitCache::Jit_TcFloatThrough() {
 	ADDI(scratchReg, scratchReg, 4);
 	LWBRX(tempReg2, srcReg, scratchReg);
 
-	STW(tempReg1, dstReg, dec_->decFmt.uvoff + 4);
+	STW(tempReg1, dstReg, dec_->decFmt.uvoff + 0);
 	STW(tempReg2, dstReg, dec_->decFmt.uvoff + 4);
 }
 
