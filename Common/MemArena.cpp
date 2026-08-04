@@ -18,6 +18,10 @@
 #include "MemoryUtil.h"
 #include "MemArena.h"
 
+#ifdef _XBOX
+static u8 *g_xboxReservationBase = NULL;
+#endif
+
 #ifdef _WIN32
 #include "CommonWindows.h"
 #else
@@ -381,6 +385,7 @@ u8 *MemoryMap_Setup(const MemoryView *views, int num_views, u32 flags, MemArena 
 #elif defined(_XBOX)
 	// Reserve 256MB
 	u8 *base = (u8*)VirtualAlloc(0, 0x10000000, MEM_RESERVE|MEM_LARGE_PAGES, PAGE_READWRITE);
+	g_xboxReservationBase = base;
 	if (!Memory_TryBase(base, views, num_views, flags, arena))
 	{
 		PanicAlert("MemoryMap_Setup: Failed finding a memory base.");
@@ -439,4 +444,11 @@ void MemoryMap_Shutdown(const MemoryView *views, int num_views, u32 flags, MemAr
 		if (views[i].out_ptr_low)
 			*views[i].out_ptr_low = NULL;
 	}
+#ifdef _XBOX
+	if (g_xboxReservationBase) {
+		VirtualFree(g_xboxReservationBase, 0, MEM_RELEASE);
+		g_xboxReservationBase = NULL;
+	}
+#endif
 }
+

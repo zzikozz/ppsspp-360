@@ -520,11 +520,15 @@ XboxLauncher::XboxLauncher()
 	, startTime_(0)
 	, inGameMenuActive_(false)
 	, wantsExitToMenu_(false)
+	, wantsExitToXbox_(false)
+	, wantsResetGame_(false)
 	, inGameMenuSel_(0)
 	, inGameMenuFocus_(INGMENU_LEFT)
 	, igmPrevButtons_(0)
 	, igmRepeatDelay_(0)
+	, toastEndTime_(0)
 {
+	toastMsg_[0] = 0;
 	// Pre-compute pseudo-random positions for floating background symbols
 	for (int i = 0; i < 100; i++) {
 		symX_[i] = (float)((i * 139 + 211) % SCREEN_W);
@@ -1911,7 +1915,7 @@ void XboxLauncher::RenderRightPanel() {
 // In-game menu (overlay during emulation)
 // ---------------------------------------------------------------------------
 
-static const char *ingMenuLabelsR[] = { "Continue Game", "Settings", "Exit to Menu" };
+static const char *ingMenuLabelsR[] = { "Continue Game", "Settings", "Reset Game", "Exit to Xbox", "Exit to Menu" };
 
 void XboxLauncher::UpdateInGameMenu(DWORD buttons) {
 	if (!inGameMenuActive_) return;
@@ -1927,7 +1931,7 @@ void XboxLauncher::UpdateInGameMenu(DWORD buttons) {
 	if (justPressed & XINPUT_GAMEPAD_DPAD_RIGHT) right = true;
 
 	int leftMax = SaveState::SAVESTATESLOTS - 1;
-	int rightMax = 2;
+	int rightMax = 4;
 	if (inGameMenuFocus_ == INGMENU_LEFT) {
 		if (left) inGameMenuFocus_ = INGMENU_RIGHT;
 		if (right) inGameMenuFocus_ = INGMENU_RIGHT;
@@ -1954,14 +1958,28 @@ void XboxLauncher::UpdateInGameMenu(DWORD buttons) {
 	if (inGameMenuFocus_ == INGMENU_LEFT) {
 		int slot = inGameMenuSel_;
 		if (slot >= 0 && slot < SaveState::SAVESTATESLOTS) {
-			if (justPressed & XINPUT_GAMEPAD_A) {
-				SaveState::SaveSlot(slot, 0, 0);
-				SaveState::Process();
-			}
-			if (justPressed & XINPUT_GAMEPAD_X) {
-				SaveState::LoadSlot(slot, 0, 0);
-				SaveState::Process();
-			}
+		if (justPressed & XINPUT_GAMEPAD_A) {
+			SaveState::SaveSlot(slot, 0, 0);
+			SaveState::Process();
+			inGameMenuActive_ = false;
+			char msg[32];
+			sprintf(msg, "State %d saved", slot + 1);
+			ShowToast(msg);
+		}
+		if (justPressed & XINPUT_GAMEPAD_X) {
+			SaveState::LoadSlot(slot, 0, 0);
+			SaveState::Process();
+			inGameMenuActive_ = false;
+			char msg[32];
+			sprintf(msg, "State %d loaded", slot + 1);
+			ShowToast(msg);
+		}
+		if (justPressed & XINPUT_GAMEPAD_Y && SaveState::HasSaveInSlot(slot)) {
+			SaveState::DeleteSlot(slot);
+			char msg[32];
+			sprintf(msg, "State %d deleted", slot + 1);
+			ShowToast(msg);
+		}
 		}
 		} else {
 		if (justPressed & XINPUT_GAMEPAD_A) {
@@ -1973,13 +1991,58 @@ void XboxLauncher::UpdateInGameMenu(DWORD buttons) {
 				// TODO: open settings
 				inGameMenuActive_ = false;
 				break;
-			case 2: // Exit to Menu
+			case 2: // Reset Game
+				inGameMenuActive_ = false;
+				wantsResetGame_ = true;
+				break;
+			case 3: // Exit to Xbox
+				inGameMenuActive_ = false;
+				wantsExitToXbox_ = true;
+				break;
+			case 4: // Exit to Menu
 				inGameMenuActive_ = false;
 				wantsExitToMenu_ = true;
 				break;
 			}
 		}
 	}
+}
+
+void XboxLauncher::ShowToast(const char *msg) {
+	strncpy(toastMsg_, msg, sizeof(toastMsg_) - 1);
+	toastMsg_[sizeof(toastMsg_) - 1] = 0;
+	toastEndTime_ = GetTickCount() + 2000;
+}
+
+void XboxLauncher::RenderToast() {
+	if (toastMsg_[0] == 0) return;
+	DWORD now = GetTickCount();
+	if (now >= toastEndTime_) {
+		toastMsg_[0] = 0;
+		return;
+	}
+
+	EnsureResources();
+
+	float alpha = 1.0f;
+	DWORD remaining = toastEndTime_ - now;
+	if (remaining < 500) {
+		alpha = (float)remaining / 500.0f;
+	}
+
+	int strW = StringWidth(toastMsg_, SCALE_SMALL);
+	float padX = 20.0f;
+	float padY = 8.0f;
+	float w = (float)strW + padX * 2;
+	float h = (float)FONT_H_SMALL + padY * 2;
+	float x = (float)(SCREEN_W - (int)w) / 2.0f;
+	float y = (float)SCREEN_H - h - 40.0f;
+
+	DWORD bg = ((DWORD)(alpha * 180.0f) << 24) | 0x00202020;
+	DWORD fg = ((DWORD)(alpha * 255.0f) << 24) | 0x00FFFFFF;
+
+	DrawRect(x, y, x + w, y + h, bg);
+	DrawString(toastMsg_, (int)x + (int)padX, (int)y + (int)padY, SCALE_SMALL, fg);
 }
 
 void XboxLauncher::RenderInGameMenu() {
@@ -2017,7 +2080,7 @@ void XboxLauncher::RenderInGameMenu() {
 
 		char label[64];
 		if (hasSave)
-			sprintf(label, "Slot %d [SAVED]   (A:Save  X:Load)", i + 1);
+			sprintf(label, "Slot %d [SAVED]   (A:Save  X:Load  Y:Del)", i + 1);
 		else
 			sprintf(label, "Slot %d (empty)   (A:Save)", i + 1);
 
@@ -2025,7 +2088,7 @@ void XboxLauncher::RenderInGameMenu() {
 	}
 
 	// Right panel items
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 5; i++) {
 		float y = menuY + (float)i * itemH + 4.0f;
 		float h = itemH - 8.0f;
 		bool sel = (inGameMenuFocus_ == INGMENU_RIGHT && inGameMenuSel_ == i);
@@ -2037,7 +2100,9 @@ void XboxLauncher::RenderInGameMenu() {
 
 	// Bottom hints
 	float hintY = menuY + totalH + 20.0f;
-	DrawString("D-Pad: Navigate   A: Confirm   B: Close Menu   X: Load", (int)leftX, (int)hintY, SCALE_SMALL, COL_TAB_TEXT);
+	DrawString("D-Pad: Navigate   A: Save   X: Load   Y: Delete   B: Close Menu", (int)leftX, (int)hintY, SCALE_SMALL, COL_TAB_TEXT);
+
+	RenderToast();
 }
 
 // ---------------------------------------------------------------------------

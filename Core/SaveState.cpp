@@ -252,6 +252,16 @@ namespace SaveState
 		return File::Exists(fn);
 	}
 
+	void DeleteSlot(int slot)
+	{
+		std::string fn = GenerateSaveSlotFilename(slot, STATE_EXTENSION);
+		if (!fn.empty() && File::Exists(fn))
+			File::Delete(fn);
+		std::string jpg = GenerateSaveSlotFilename(slot, SCREENSHOT_EXTENSION);
+		if (!jpg.empty() && File::Exists(jpg))
+			File::Delete(jpg);
+	}
+
 	bool HasScreenshotInSlot(int slot)
 	{
 		std::string fn = GenerateSaveSlotFilename(slot, SCREENSHOT_EXTENSION);

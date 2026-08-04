@@ -436,6 +436,7 @@ void JitBlockCache::DestroyBlock(int block_num, bool invalidate)
 	PPCXEmitter emit((u8 *)b.checkedEntry);
 	emit.MOVI2R(R3, b.originalAddress);
 	emit.STW(R0, CTXREG, offsetof(MIPSState, pc));
+	emit.STW(R3, CTXREG, offsetof(MIPSState, pc));
 	emit.B(MIPSComp::jit->dispatcher);
 	emit.FlushIcache();
 #endif

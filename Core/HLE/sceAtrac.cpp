@@ -25,6 +25,18 @@
 #include "Core/HW/BufferQueue.h"
 #include "Common/ChunkFile.h"
 
+#ifdef _XBOX
+// TEMP DIAGNOSTIC: rotating ring of raw decode output (pre-volume, native BE s16),
+// the last 15s. Dumped to game:\decode_dump.raw when the shared g_audioDumpTrigger
+// (raised by __AudioMix) fires, so decode_dump and audio_dump cover the SAME window.
+#include <cstring>
+#include <cstdio>
+static s16 g_decodeRing[44100 * 15 * 2];
+static size_t g_decodeRingPos = 0;
+static size_t g_decodeRingFilled = 0;
+static bool g_decodeDumpDone = false;
+#endif
+
 #include "sceKernel.h"
 #include "sceUtility.h"
 #include "sceKernelMemory.h"
@@ -630,6 +642,18 @@ u32 _AtracDecodeData(int atracID, u8* outbuf, u32 *SamplesNum, u32* finish, int 
 							if (avret < 0) {
 								ERROR_LOG(ME, "swr_convert: Error while converting %d", avret);
 							}
+#ifdef _XBOX
+							if (!g_decodeDumpDone) {
+								size_t n = (size_t)numSamples * (size_t)atrac->atracOutputChannels;
+								const size_t kCap = 44100 * 15 * 2;
+								for (size_t i = 0; i < n; i++) {
+									g_decodeRing[g_decodeRingPos] = ((s16 *)out)[i];
+									g_decodeRingPos = (g_decodeRingPos + 1) % kCap;
+								}
+								if (g_decodeRingFilled < kCap)
+									g_decodeRingFilled = std::min(kCap, g_decodeRingFilled + n);
+							}
+#endif
 							__AdjustBGMVolume((s16 *)out, numSamples * atrac->atracOutputChannels);
 						}
 					}
@@ -692,6 +716,22 @@ u32 sceAtracDecodeData(int atracID, u32 outAddr, u32 numSamplesAddr, u32 finishF
 		Memory::Write_U32(finish, finishFlagAddr);
 		Memory::Write_U32(remains, remainAddr);
 	}
+#ifdef _XBOX
+	if (!g_decodeDumpDone) {
+		extern volatile int g_audioDumpTrigger;
+		if (g_audioDumpTrigger != 0) {
+			FILE *f = fopen("game:\\decode_dump.raw", "wb");
+			if (f) {
+				fwrite(g_decodeRing, 1, g_decodeRingFilled * sizeof(s16), f);
+				fclose(f);
+			}
+			g_decodeDumpDone = true;
+			INFO_LOG(ME, "decode_dump.raw written: %u samples (triggered by audio, wrapped=%s)",
+				(unsigned int)g_decodeRingFilled,
+				(g_decodeRingFilled >= (size_t)(44100 * 15 * 2)) ? "yes" : "no");
+		}
+	}
+#endif
 	DEBUG_LOG(ME, "%08x=sceAtracDecodeData(%i, %08x, %08x, %08x, %08x)", ret, atracID, outAddr, numSamplesAddr, finishFlagAddr, remainAddr);
 	if (!ret) {
 		// decode data successfully, delay thread

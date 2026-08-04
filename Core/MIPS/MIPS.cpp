@@ -171,6 +171,7 @@ void MIPSState::Reset()
 {
 	if (MIPSComp::jit)
 	{
+		MIPSComp::jit->GetBlockCache()->Clear();
 		delete MIPSComp::jit;
 		MIPSComp::jit = 0;
 	}

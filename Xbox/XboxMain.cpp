@@ -388,6 +388,8 @@ int main(int argc, const char* argv[])
 
 		// ---- Emulation loop ----
 		bool returnToMenu = false;
+		bool resetGame = false;
+		bool exitToXbox = false;
 		bool igmWasActive = false;
 		__try
 		{
@@ -434,6 +436,14 @@ int main(int argc, const char* argv[])
 						launcher.ClearExitToMenu();
 						returnToMenu = true;
 						coreState = CORE_ERROR;
+					} else if (launcher.WantsResetGame()) {
+						launcher.ClearResetGame();
+						resetGame = true;
+						coreState = CORE_ERROR;
+					} else if (launcher.WantsExitToXbox()) {
+						launcher.ClearExitToXbox();
+						exitToXbox = true;
+						coreState = CORE_ERROR;
 					}
 				} else {
 					// On transition from menu -> game, consume held buttons
@@ -453,8 +463,9 @@ int main(int argc, const char* argv[])
 					if (coreState == CORE_NEXTFRAME) {
 						coreState = CORE_RUNNING;
 
-						XboxFpsOverlay::DrawFpsOverlay();
-						xbhost->EndFrame();
+					XboxFpsOverlay::DrawFpsOverlay();
+					launcher.RenderToast();
+					xbhost->EndFrame();
 						xbhost->SwapBuffers();
 						xbhost->BeginFrame();
 					}
@@ -472,6 +483,19 @@ int main(int argc, const char* argv[])
 			launcher.SetInGameMenuActive(false);
 			// PSP stays alive - restarted when same game is re-selected
 			continue;
+		}
+		if (resetGame) {
+			// Reset the current game: shut down and re-init the same ISO.
+			if (pspInited) {
+				PSP_Shutdown();
+			}
+			pspInited = false;
+			launcher.SetInGameMenuActive(false);
+			continue;
+		}
+		if (exitToXbox) {
+			launcher.SetInGameMenuActive(false);
+			break;
 		}
 		break;
 	}

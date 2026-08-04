@@ -273,6 +273,7 @@ void TextureCacheDX9::NotifyFramebuffer(u32 address, VirtualFramebufferDX9 *fram
 		break;
 
 	case NOTIFY_FB_DESTROYED:
+		fbCache_.erase(std::remove(fbCache_.begin(), fbCache_.end(), framebuffer), fbCache_.end());
 		for (auto it = cache.lower_bound(cacheKey), end = cache.upper_bound(cacheKeyEnd); it != end; ++it) {
 			DetachFramebuffer(&it->second, address | 0x04000000, framebuffer);
 		}

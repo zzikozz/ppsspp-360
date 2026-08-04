@@ -38,6 +38,9 @@
 #endif
 #endif
 
+template<typename T, typename F>
+struct swap_struct_t;
+
 #include "Common.h"
 #include "FileUtil.h"
 #include "../ext/snappy/snappy-c.h"
@@ -112,7 +115,13 @@ class PointerWrap
 
 		static void Do(PointerWrap *p, T &x)
 		{
+#ifdef _XBOX
+			// On Xbox, swap_struct_t makes all *_le structs non-POD, but DoState()
+			// doesn't exist on most of them.  Treat them as raw bytes (same as POD).
+			p->DoVoid((void *)&x, sizeof(x));
+#else
 			p->DoClass(x);
+#endif
 		}
 	};
 
@@ -465,6 +474,11 @@ public:
 	template<class T>
 	void Do(T &x) {
 		DoHelper<T>::Do(this, x);
+	}
+
+	template<typename T, typename F>
+	void Do(swap_struct_t<T, F> &x) {
+		DoVoid((void *)&x, sizeof(x));
 	}
 
 	template<class T>

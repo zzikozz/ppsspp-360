@@ -178,6 +178,7 @@ void CPU_Init() {
 	}
 
 	Memory::Init();
+	Memory::Clear();  // Ensure PSP RAM is zeroed every launch: emuhack ops written by a previous JIT instance must not survive into the next run.
 	mipsr4k.Reset();
 
 	host->AttemptLoadSymbolMap();
@@ -210,6 +211,9 @@ void CPU_Init() {
 }
 
 void CPU_Shutdown() {
+	if (currentCPU == NULL)
+		return;
+
 	if (g_Config.bAutoSaveSymbolMap) {
 		host->SaveSymbolMap();
 	}
@@ -334,9 +338,12 @@ void PSP_Shutdown() {
 		CPU_WaitStatus(cpuThreadReplyCond, &CPU_IsShutdown);
 		delete cpuThread;
 		cpuThread = 0;
-	} else {
-		CPU_Shutdown();
 	}
+	// Always call CPU_Shutdown to clean up pspFileSystem mounts, kernel state,
+	// timing, etc. Previously this was skipped in threaded mode, causing stale
+	// disc0: mounts to persist across game switches — making g_paramSFO retain
+	// the previous game's DISC_ID and causing save state cross-contamination.
+	CPU_Shutdown();
 	GPU_Shutdown();
 	host->SetWindowTitle(0);
 }

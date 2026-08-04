@@ -29,6 +29,10 @@
 #include "FixedSizeQueue.h"
 #include "Common/Atomics.h"
 #include "../../native/base/mutex.h"
+#ifdef _XBOX
+#include <algorithm>
+#include <cstdio>
+#endif
 
 // Should be used to lock anything related to the outAudioQueue.
 //atomic locks are used on the lock. TODO: make this lock-free
@@ -38,6 +42,10 @@ recursive_mutex mutex_;
 int eventAudioUpdate = -1;
 int eventHostAudioUpdate = -1; 
 int mixFrequency = 44100;
+
+#ifdef _XBOX
+volatile int g_audioDumpTrigger = 0;
+#endif
 
 const int hwSampleRate = 44100;
 
@@ -54,9 +62,9 @@ static s32 *mixBuffer;
 static int chanQueueMaxSizeFactor;
 static int chanQueueMinSizeFactor;
 
-// TODO: Need to replace this with something lockless. Mutexes in the audio pipeline
-// is bad mojo.
-FixedSizeQueue<s16, 512 * 8> outAudioQueue;
+// underrun crackle. 512*16 = 4 frames of headroom: enough to kill the crackle
+// without the audible start-of-track latency that 512*64 added.
+FixedSizeQueue<s16, 512 * 16> outAudioQueue;
 
 bool __gainAudioQueueLock();
 void __releaseAcquiredLock();
@@ -417,6 +425,80 @@ int __AudioMix(short *outstereo, int numFrames)
 		underrun = (int)(sz1 + sz2) / 2;
 		VERBOSE_LOG(SCEAUDIO, "Audio out buffer UNDERRUN at %i of %i", underrun, numFrames);
 	}
+
+#ifdef _XBOX
+	// TEMP DIAGNOSTIC: capture the PCM sent to XAudio2 into a RAM ring buffer (no I/O in the
+	// audio path), then write it once to game:\audio_dump.raw when sustained audio is detected.
+	// Native endian on Xbox (big-endian s16). Remove after debugging.
+	{
+		static s16 ring[44100 * 15 * 2];
+		static size_t ringPos = 0;
+		static size_t ringFilled = 0;
+		static int nonZeroStreak = 0;
+		static int maxStreak = 0;
+		static size_t totalBuffers = 0;
+		static size_t nonZeroBuffers = 0;
+		static size_t totalUnderruns = 0;
+		static bool dumpDone = false;
+		static bool armedLogged = false;
+		const size_t kRingSamples = 44100 * 15 * 2;
+
+		if (!dumpDone) {
+			if (!armedLogged) {
+				armedLogged = true;
+				INFO_LOG(SCEAUDIO, "Audio dump armed (recording last 15s)");
+			}
+			totalBuffers++;
+			if (underrun >= 0) {
+				totalUnderruns++;
+			}
+			bool hasAudio = false;
+			size_t bufSamples = (size_t)numFrames * 2;
+			for (size_t i = 0; i < bufSamples; i++) {
+				if (outstereo[i] != 0) { hasAudio = true; break; }
+			}
+			if (hasAudio) {
+				nonZeroBuffers++;
+				nonZeroStreak++;
+				if (nonZeroStreak > maxStreak) maxStreak = nonZeroStreak;
+			} else {
+				nonZeroStreak = 0;
+			}
+
+			// Always record into the ring buffer (last 15s).
+			size_t toCopy = std::min(bufSamples, kRingSamples);
+			if (ringPos + toCopy <= kRingSamples) {
+				memcpy(ring + ringPos, outstereo, toCopy * sizeof(s16));
+			} else {
+				size_t first = kRingSamples - ringPos;
+				memcpy(ring + ringPos, outstereo, first * sizeof(s16));
+				memcpy(ring, outstereo + first, (toCopy - first) * sizeof(s16));
+			}
+			ringPos = (ringPos + toCopy) % kRingSamples;
+			if (ringFilled < kRingSamples)
+				ringFilled = std::min(kRingSamples, ringFilled + toCopy);
+
+			// ~3s of continuous audio (streak of 130 buffers) => BGM captured.
+			// Fallback at 5000 buffers (~2 min) so we never hang forever.
+			if (nonZeroStreak >= 130 || totalBuffers >= 5000) {
+				// Raise the shared trigger BEFORE writing so the decode-side ring
+				// dumps the same wall-clock window (both are "last 15s" rings).
+				g_audioDumpTrigger = 1;
+				FILE *f = fopen("game:\\audio_dump.raw", "wb");
+				if (f) {
+					fwrite(ring, 1, ringFilled * sizeof(s16), f);
+					fclose(f);
+				}
+				dumpDone = true;
+				INFO_LOG(SCEAUDIO, "Audio dump complete: %d bytes written (%d/%d buffers had audio, peak streak %d, "
+					"underruns %d, %.1fs total)",
+					(int)(ringFilled * sizeof(s16)), (int)nonZeroBuffers, (int)totalBuffers,
+					maxStreak, (int)totalUnderruns, (double)totalBuffers * 1024.0 / 44100.0);
+			}
+		}
+	}
+#endif
+
 	return underrun >= 0 ? underrun : numFrames;
 }
 

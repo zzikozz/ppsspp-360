@@ -48,11 +48,17 @@ public:
 
 	// In-game menu (used during emulation)
 	bool IsInGameMenuActive() const { return inGameMenuActive_; }
-	void SetInGameMenuActive(bool active) { inGameMenuActive_ = active; wantsExitToMenu_ = false; inGameMenuSel_ = 0; inGameMenuFocus_ = INGMENU_LEFT; }
+	void SetInGameMenuActive(bool active) { inGameMenuActive_ = active; wantsExitToMenu_ = false; wantsExitToXbox_ = false; wantsResetGame_ = false; inGameMenuSel_ = 0; inGameMenuFocus_ = INGMENU_LEFT; }
 	bool WantsExitToMenu() const { return wantsExitToMenu_; }
 	void ClearExitToMenu() { wantsExitToMenu_ = false; }
+	bool WantsExitToXbox() const { return wantsExitToXbox_; }
+	void ClearExitToXbox() { wantsExitToXbox_ = false; }
+	bool WantsResetGame() const { return wantsResetGame_; }
+	void ClearResetGame() { wantsResetGame_ = false; }
 	void UpdateInGameMenu(DWORD buttons);
 	void RenderInGameMenu();
+	void ShowToast(const char *msg);
+	void RenderToast();
 
 private:
 	void ScanGames();
@@ -136,10 +142,16 @@ private:
 	// In-game menu
 	bool inGameMenuActive_;
 	bool wantsExitToMenu_;
+	bool wantsExitToXbox_;
+	bool wantsResetGame_;
 	int inGameMenuSel_;
 	InGameMenuFocus inGameMenuFocus_;
 	DWORD igmPrevButtons_;
 	int igmRepeatDelay_;
+
+	// Toast
+	char toastMsg_[64];
+	DWORD toastEndTime_;
 
 	// Background animation
 	float startTime_;

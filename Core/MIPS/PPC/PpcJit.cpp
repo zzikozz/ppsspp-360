@@ -209,6 +209,7 @@ Jit::Jit(MIPSState *mips) : blocks(mips, this), gpr(mips, &jo),fpr(mips),mips_(m
 	gpr.SetEmitter(this);
 	fpr.SetEmitter(this);
 	AllocCodeSpace(1024 * 1024 * 16);  // 32MB is the absolute max because that's what an ARM branch instruction can reach, backwards and forwards.
+	ClearCodeSpace();  // Wipe any leftover code from a previous JIT instance (the arena is a static buffer reused across restarts).
 	GenerateFixedCode();
 
 	js.startDefaultPrefix = true;

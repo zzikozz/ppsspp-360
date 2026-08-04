@@ -31,6 +31,7 @@ namespace SaveState
 
 	void SaveSlot(int slot, Callback callback, void *cbUserData = 0);
 	void LoadSlot(int slot, Callback callback, void *cbUserData = 0);
+	void DeleteSlot(int slot);
 	// Checks whether there's an existing save in the specified slot.
 	bool HasSaveInSlot(int slot);
 	bool HasScreenshotInSlot(int slot);

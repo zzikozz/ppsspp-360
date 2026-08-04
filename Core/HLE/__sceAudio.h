@@ -33,3 +33,9 @@ void __AudioWakeThreads(AudioChannel &chan, int result, int step);
 void __AudioWakeThreads(AudioChannel &chan, int result);
 
 int __AudioMix(short *outstereo, int numSamples);
+
+#ifdef _XBOX
+// Shared diagnostic trigger so decode_dump.raw and audio_dump.raw capture the SAME
+// wall-clock window (both are "last N" RAM rings). Set by __AudioMix when it dumps.
+extern volatile int g_audioDumpTrigger;
+#endif
