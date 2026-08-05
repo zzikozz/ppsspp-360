@@ -33,7 +33,7 @@ public:
 	~SimpleAT3();
 
 	bool Decode(void* inbuf, int inbytes, uint8_t *outbuf, int *outbytes);
-	bool IsOK() const { return codec_ != 0; }
+	bool IsOK() const { return codec_ != 0 && codecCtx_ != 0 && swrCtx_ != 0; }
 
 private:
 	AVFrame *frame_;
@@ -50,8 +50,10 @@ SimpleAT3::SimpleAT3()
 
 	codec_ = avcodec_find_decoder(AV_CODEC_ID_ATRAC3P);
 	if (!codec_) {
-		// Eh, we shouldn't even have managed to compile. But meh.
-		ERROR_LOG(ME, "This version of FFMPEG does not support AV_CODEC_ID_ATRAC3P (Atrac3+). Update your submodule.");
+		codec_ = avcodec_find_decoder(AV_CODEC_ID_ATRAC3);
+	}
+	if (!codec_) {
+		ERROR_LOG(ME, "No ATRAC3 or ATRAC3+ decoder available in FFMPEG.");
 		return;
 	}
 
@@ -63,12 +65,29 @@ SimpleAT3::SimpleAT3()
 
 	codecCtx_->channels = 2;
 	codecCtx_->channel_layout = AV_CH_LAYOUT_STEREO;
+	codecCtx_->sample_rate = 44100;
+	codecCtx_->block_align = 384;
+
+	// Use RM-format extradata (10 bytes). This tells ffmpeg the stream is
+	// scrambled (byte-reversed) and sets the correct coding mode, so
+	// atrac3.c handles the reversal internally via decode_bytes().
+	codecCtx_->extradata_size = 10;
+	codecCtx_->extradata = (uint8_t *)av_mallocz(10 + FF_INPUT_BUFFER_PADDING_SIZE);
+	if (codecCtx_->extradata) {
+		uint8_t *e = codecCtx_->extradata;
+		// version=4 (big-endian u32)
+		e[0] = 0x00; e[1] = 0x00; e[2] = 0x00; e[3] = 0x04;
+		// samples_per_frame=4 (big-endian u16) - 2048 samples
+		e[4] = 0x00; e[5] = 0x04;
+		// delay=2304 (big-endian u16)
+		e[6] = 0x08; e[7] = 0x8E;
+		// coding_mode=1 -> JOINT_STEREO (big-endian u16)
+		e[8] = 0x00; e[9] = 0x01;
+	}
 
 	AVDictionary *opts = 0;
-	av_dict_set(&opts, "channels", "2", 0);
-	av_dict_set(&opts, "sample_rate", "44100", 0);
 	if (avcodec_open2(codecCtx_, codec_, &opts) < 0) {
-		ERROR_LOG(ME, "Failed to open codec");
+		ERROR_LOG(ME, "Failed to open codec (channels=%d, sample_rate=%d, block_align=%d)", codecCtx_->channels, codecCtx_->sample_rate, codecCtx_->block_align);
 		return;
 	}
 
@@ -102,8 +121,11 @@ SimpleAT3::SimpleAT3()
 SimpleAT3::~SimpleAT3() {
 	if (frame_)
 		avcodec_free_frame(&frame_);
-	if (codecCtx_)
+	if (codecCtx_) {
+		if (codecCtx_->extradata)
+			av_free(codecCtx_->extradata);
 		avcodec_close(codecCtx_);
+	}
 	codecCtx_ = 0;
 	codec_ = 0;
 	if (swrCtx_)
@@ -113,20 +135,19 @@ SimpleAT3::~SimpleAT3() {
 // Input is a single Atrac3+ packet.
 bool SimpleAT3::Decode(void* inbuf, int inbytes, uint8_t *outbuf, int *outbytes) {
 #ifdef USE_FFMPEG
+	*outbytes = 0;
+
 	AVPacket packet = {0};
 	av_init_packet(&packet);
 	packet.data = static_cast<uint8_t *>(inbuf);
 	packet.size = inbytes;
-
-	*outbytes = 0;
 
 	int got_frame = 0;
 	avcodec_get_frame_defaults(frame_);
 
 	int len = avcodec_decode_audio4(codecCtx_, frame_, &got_frame, &packet);
 	if (len < 0) {
-		ERROR_LOG(ME, "Error decoding Atrac3+ frame");
-		// TODO: cleanup
+		ERROR_LOG(ME, "Error decoding Atrac3 frame");
 		return false;
 	}
 
@@ -143,7 +164,14 @@ bool SimpleAT3::Decode(void* inbuf, int inbytes, uint8_t *outbuf, int *outbytes)
 			return false;
 		}
 		// We always convert to stereo.
-		__AdjustBGMVolume((s16 *)outbuf, numSamples * 2);
+		int totalSamples = swrRet * 2;
+		__AdjustBGMVolume((s16 *)outbuf, totalSamples);
+#ifdef _XBOX
+		for (int i = 0; i < totalSamples; i++) {
+			((uint16 *)outbuf)[i] = bswap16(((uint16 *)outbuf)[i]);
+		}
+#endif
+		*outbytes = swrRet * 2 * sizeof(s16);
 	}
 
 	return true;

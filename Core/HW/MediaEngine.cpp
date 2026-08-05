@@ -86,6 +86,9 @@ void ffmpeg_logger(void *, int level, const char *format, va_list va_args) {
 }
 
 bool InitFFmpeg() {
+	avcodec_register_all();
+	av_register_all();
+
 #ifdef _DEBUG
 	av_log_set_level(AV_LOG_VERBOSE);
 #else
@@ -246,8 +249,10 @@ bool MediaEngine::openContext() {
 #ifdef USE_FFMPEG
 	InitFFmpeg();
 
-	if (m_pFormatCtx || !m_pdata)
+	if (m_pFormatCtx || !m_pdata) {
+		ERROR_LOG(ME, "MediaEngine::openContext: m_pFormatCtx=%p, m_pdata=%p", m_pFormatCtx, m_pdata);
 		return false;
+	}
 	m_mpegheaderReadPos = 0;
 	m_decodingsize = 0;
 
@@ -258,11 +263,15 @@ bool MediaEngine::openContext() {
 	m_pFormatCtx->pb = m_pIOContext;
 
 	// Open video file
-	if (avformat_open_input((AVFormatContext**)&m_pFormatCtx, NULL, NULL, NULL) != 0)
+	if (avformat_open_input((AVFormatContext**)&m_pFormatCtx, NULL, NULL, NULL) != 0) {
+		ERROR_LOG(ME, "MediaEngine::openContext: avformat_open_input failed");
 		return false;
+	}
 
-	if (avformat_find_stream_info(m_pFormatCtx, NULL) < 0)
+	if (avformat_find_stream_info(m_pFormatCtx, NULL) < 0) {
+		ERROR_LOG(ME, "MediaEngine::openContext: avformat_find_stream_info failed");
 		return false;
+	}
 
 	if (m_videoStream >= (int)m_pFormatCtx->nb_streams) {
 		WARN_LOG_REPORT(ME, "Bad video stream %d", m_videoStream);
@@ -286,8 +295,10 @@ bool MediaEngine::openContext() {
 
 	// Find the decoder for the video stream
 	AVCodec *pCodec = avcodec_find_decoder(m_pCodecCtx->codec_id);
-	if(pCodec == NULL)
+	if(pCodec == NULL) {
+		ERROR_LOG(ME, "MediaEngine::openContext: avcodec_find_decoder failed for codec_id=%d", m_pCodecCtx->codec_id);
 		return false;
+	}
 
 	// Open codec
 	AVDictionary *optionsDict = 0;
@@ -335,7 +346,7 @@ int MediaEngine::addStreamData(u8* buffer, int addSize) {
 #ifdef USE_FFMPEG
 		if (!m_pFormatCtx) {
 			m_pdata->get_front(m_mpegheader, sizeof(m_mpegheader));
-			int mpegoffset = bswap32(*(int*)(m_mpegheader + 8));
+			int mpegoffset = (int)(*(s32_be*)(m_mpegheader + 8));
 			m_pdata->pop_front(0, mpegoffset);
 			openContext();
 		}
@@ -457,11 +468,10 @@ bool MediaEngine::stepVideo(int videoPixelMode) {
 
 // Helpers that null out alpha (which seems to be the case on the PSP.)
 // Some games depend on this, for example Sword Art Online (doesn't clear A's from buffer.)
-
 inline void writeVideoLineRGBA(void *destp, const void *srcp, int width) {
 	// TODO: Use SSE/NEON, investigate why AV_PIX_FMT_RGB0 does not work.
-	u32 *dest = (u32 *)destp;
-	const u32 *src = (u32 *)srcp;
+	u32_le *dest = (u32_le *)destp;
+	const u32_le *src = (u32_le *)srcp;
 
 	u32 mask = 0x00FFFFFF;
 	for (int i = 0; i < width; ++i) {
@@ -475,8 +485,8 @@ inline void writeVideoLineABGR5650(void *destp, const void *srcp, int width) {
 
 inline void writeVideoLineABGR5551(void *destp, const void *srcp, int width) {
 	// TODO: Use SSE/NEON.
-	u16 *dest = (u16 *)destp;
-	const u16 *src = (u16 *)srcp;
+	u16_le *dest = (u16_le *)destp;
+	const u16_le *src = (u16_le *)srcp;
 
 	u16 mask = 0x7FFF;
 	for (int i = 0; i < width; ++i) {
@@ -486,8 +496,8 @@ inline void writeVideoLineABGR5551(void *destp, const void *srcp, int width) {
 
 inline void writeVideoLineABGR4444(void *destp, const void *srcp, int width) {
 	// TODO: Use SSE/NEON.
-	u16 *dest = (u16 *)destp;
-	const u16 *src = (u16 *)srcp;
+	u16_le *dest = (u16_le *)destp;
+	const u16_le *src = (u16_le *)srcp;
 
 	u16 mask = 0x0FFF;
 	for (int i = 0; i < width; ++i) {
@@ -654,6 +664,7 @@ int MediaEngine::getAudioSamples(u32 bufferPtr) {
 
 	u8 *buffer = Memory::GetPointer(bufferPtr);
 	if (!m_demux) {
+		WARN_LOG(ME, "getAudioSamples: m_demux is NULL");
 		return 0;
 	}
 	u8 *audioFrame = 0;
@@ -667,8 +678,11 @@ int MediaEngine::getAudioSamples(u32 bufferPtr) {
 
 	if (m_audioContext != NULL) {
 		if (!AT3Decode(m_audioContext, audioFrame, frameSize, &outbytes, buffer)) {
-			ERROR_LOG(ME, "AT3 decode failed during video playback");
+			ERROR_LOG(ME, "AT3 decode failed during video playback, frameSize=%d", frameSize);
 		}
+		DEBUG_LOG(ME, "AT3 decode OK, outbytes=%d", outbytes);
+	} else {
+		ERROR_LOG(ME, "getAudioSamples: m_audioContext is NULL, no audio decoded");
 	}
 
 	if (headerCode1 == 0x24) {

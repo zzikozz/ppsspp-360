@@ -29,6 +29,10 @@
 #include "MemoryUtil.h"
 #include <vector>
 
+#ifdef _XBOX
+extern "C" void bfree(void* ptr);
+#endif
+
 #undef _IP
 #undef R0
 #undef _SP
@@ -203,6 +207,7 @@ namespace PpcGen
 		void BA (const void *fnptr);
 		void BLA(const void *fnptr);
 		void BEQ(const void *fnptr);
+		void BNE(const void *fnptr);
 		void BLE(const void *fnptr);
 		void BLT(const void *fnptr);
 		void BGT(const void *fnptr);
@@ -248,6 +253,7 @@ namespace PpcGen
 		}
 		// if RCFlags update CR0
 		void SUBF	(PPCReg Rd, PPCReg Ra, PPCReg Rb, int RCFlags = 0);
+		void SUBFIC	(PPCReg Rt, PPCReg Ra, short imm);
 		void SUBFC	(PPCReg Rd, PPCReg Ra, PPCReg Rb);
 		void SUBFE	(PPCReg Rd, PPCReg Ra, PPCReg Rb);
 
@@ -293,9 +299,12 @@ namespace PpcGen
 		// sign
 		void EXTSB	(PPCReg dest, PPCReg src);
 		void EXTSH	(PPCReg dest, PPCReg src);
+		void EXTSW	(PPCReg dest, PPCReg src);
 
 		// 
 		void RLWINM (PPCReg dest, PPCReg src, int shift, int start, int end);
+
+		void RLDICL (PPCReg Rt,	PPCReg Rs, int sh, int mb);
 
 		// Shift Instructions
 		void SRAW	(PPCReg dest, PPCReg src, PPCReg shift);
@@ -359,6 +368,16 @@ namespace PpcGen
 
 		// Fpu move instruction
 		void FMR	(PPCReg FRt, PPCReg FRb);
+
+		// fpu
+		void MTFSB0	(int bt);
+		void FCFID	(PPCReg FRt, PPCReg FRb);
+		void FCTID	(PPCReg FRt, PPCReg FRb);
+		void FRSP	(PPCReg FRt, PPCReg FRb);
+		void FCTIW	(PPCReg FRt, PPCReg FRb);
+		void STFIWX	(PPCReg FRt, PPCReg FRa, PPCReg FRb);
+
+		// Fpu
 		void FNEG	(PPCReg FRt, PPCReg FRb);
 		void FABS	(PPCReg FRt, PPCReg FRb);
 		void FNABS	(PPCReg FRt, PPCReg FRb);
@@ -395,6 +414,12 @@ namespace PpcGen
 		void FCMPU	(int Bf, PPCReg FRa, PPCReg FRb); // unordered
 		void FCMPO	(int Bf, PPCReg FRa, PPCReg FRb); // ordered
 
+		// Fpu convert
+		void FRIN	(PPCReg FRt, PPCReg FRb);	// round
+		void FRIZ	(PPCReg FRt, PPCReg FRb);	// trunc
+		void FRIP	(PPCReg FRt, PPCReg FRb);	// ceil
+		void FRIM	(PPCReg FRt, PPCReg FRb);	// floor
+
 
 		// VPU - lvx128
 		void LoadVector(PPCReg Rd, PPCReg Ra, PPCReg Rb);
@@ -419,7 +444,28 @@ namespace PpcGen
 		void VCMPGEFP	(PPCReg Rd, PPCReg Ra);  // Vector Compare Greater-Than-or-Equal-to Floating Point  
 		void VCMPGTFP	(PPCReg Rd, PPCReg Ra);  // Vector Compare Greater-Than Floating Point  
 
-		
+		// AltiVec / VMX128
+		void LVX   (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Indexed
+		void LVW   (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Word
+		void LVH   (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Halfword
+		void LVB   (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Byte
+		void STVX  (PPCReg d, PPCReg a, PPCReg b);  // Store Vector Indexed
+		void STVW  (PPCReg d, PPCReg a, PPCReg b);  // Store Vector Word
+		void STVH  (PPCReg d, PPCReg a, PPCReg b);  // Store Vector Halfword
+		void STVB  (PPCReg d, PPCReg a, PPCReg b);  // Store Vector Byte
+		void LVSL  (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Shifted Left
+		void LVSR  (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Shifted Right
+		void LVSIVCT(PPCReg d, PPCReg a, PPCReg b); // Load Vector Shifted Immediate VCount Time
+		void LVSI  (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Shifted Immediate
+		void LVLX  (PPCReg d, PPCReg a, PPCReg b);  // Load Vector Locked
+		void LVLH  (PPCReg d, PPCReg a, PPCReg b);
+		void LVLW  (PPCReg d, PPCReg a, PPCReg b);
+		void LVLV  (PPCReg d, PPCReg a, PPCReg b);
+		void LVLXL (PPCReg d, PPCReg a, PPCReg b);
+		void LVLHX (PPCReg d, PPCReg a, PPCReg b);
+		void LVLWX (PPCReg d, PPCReg a, PPCReg b);
+		void LVLVX (PPCReg d, PPCReg a, PPCReg b);
+		void LVSRR (PPCReg d, PPCReg a, PPCReg b);
 
 		void QuickCallFunction(void *func);
 	protected:
@@ -459,6 +505,13 @@ namespace PpcGen
 		// Call this when shutting down. Don't rely on the destructor, even though it'll do the job.
 		void FreeCodeSpace()
 		{
+			if (region) {
+#ifdef _XBOX
+				bfree(region);
+#else
+				FreeMemoryPages(region, region_size);
+#endif
+			}
 			region = NULL;
 			region_size = 0;
 		}

@@ -675,6 +675,18 @@ u32 sceAtracDecodeData(int atracID, u32 outAddr, u32 numSamplesAddr, u32 finishF
 	u32 finish = 0;
 	int remains = 0;
 	int ret = _AtracDecodeData(atracID, Memory::GetPointer(outAddr), &numSamples, &finish, &remains);
+#ifdef _XBOX
+	if (ret == 0) {
+		Atrac *atrac = getAtrac(atracID);
+		if (atrac && numSamples > 0) {
+			int totalSamples = numSamples * atrac->atracOutputChannels;
+			u16 *ptr = (u16 *)Memory::GetPointer(outAddr);
+			for (int i = 0; i < totalSamples; i++) {
+				ptr[i] = bswap16(ptr[i]);
+			}
+		}
+	}
+#endif
 	if (ret != (int)ATRAC_ERROR_BAD_ATRACID && ret != (int)ATRAC_ERROR_NO_DATA) {
 		Memory::Write_U32(numSamples, numSamplesAddr);
 		Memory::Write_U32(finish, finishFlagAddr);
@@ -1785,6 +1797,12 @@ int sceAtracLowLevelDecode(int atracID, u32 sourceAddr, u32 sourceBytesConsumedA
 						ERROR_LOG(ME, "swr_convert: Error while converting %d", avret);
 					}
 					__AdjustBGMVolume((s16 *)out, numSamples * atrac->atracOutputChannels);
+#ifdef _XBOX
+					int totalSamples = numSamples * atrac->atracOutputChannels;
+					for (int i = 0; i < totalSamples; i++) {
+						((uint16 *)out)[i] = bswap16(((uint16 *)out)[i]);
+					}
+#endif
 				}
 				av_free_packet(&packet);
 				if (got_frame)
