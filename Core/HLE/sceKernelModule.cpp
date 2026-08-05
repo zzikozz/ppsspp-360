@@ -902,7 +902,11 @@ Module *__KernelLoadELFFromPtr(const u8 *ptr, u32 loadAddress, std::string *erro
 				module->ImportFunc(func);
 			}
 
+			#if defined(_XBOX)
+			if (!firstImportStubAddr.swap() || firstImportStubAddr > entry->firstSymAddr)
+#else
 			if (!firstImportStubAddr || firstImportStubAddr > entry->firstSymAddr)
+#endif
 				firstImportStubAddr = entry->firstSymAddr;
 		} else if (entry->numFuncs > 0) {
 			WARN_LOG_REPORT(LOADER, "Module entry with %d imports but no valid address", entry->numFuncs);

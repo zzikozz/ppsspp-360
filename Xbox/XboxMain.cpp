@@ -184,6 +184,8 @@ static void UpdateInput(InputState &input) {
 
 std::string System_GetProperty(SystemProperty prop) { return ""; }
 
+bool System_InputBoxGetWString(const wchar_t *title, const std::wstring &defaultvalue, std::wstring &outvalue) { return false; }
+
 extern bool useVsync;
 
 // No devkit / XBDM available on this console, so there's no debugger to catch

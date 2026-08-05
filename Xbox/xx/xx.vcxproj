@@ -122,7 +122,7 @@
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PreprocessorDefinitions>NO_UNICODE;_DEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX</PreprocessorDefinitions>
       <CallAttributedProfiling>Callcap</CallAttributedProfiling>
-      <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native;../../ui;../../ext/zlib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native/ext;../../native;../../ui;../../ext/zlib</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -148,7 +148,7 @@
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PreprocessorDefinitions>NO_UNICODE;_DEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX</PreprocessorDefinitions>
       <CallAttributedProfiling>Callcap</CallAttributedProfiling>
-      <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native;../../ext/zlib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native/ext;../../native;../../ext/zlib</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -249,7 +249,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PreprocessorDefinitions>NO_UNICODE;NDEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native;../../ext/zlib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native/ext;../../native;../../ext/zlib</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -279,7 +279,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PreprocessorDefinitions>NO_UNICODE;NDEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native;../../ext/zlib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native/ext;../../native;../../ext/zlib</AdditionalIncludeDirectories>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
@@ -313,6 +313,21 @@
     <ClCompile Include="..\..\native\ext\jpge\jpge.cpp" />
     <ClCompile Include="..\..\native\ext\sha1\sha1.cpp" />
     <ClCompile Include="..\..\native\ext\stb_image\stb_image.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\png.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngerror.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngget.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngmem.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngpread.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngread.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngrio.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngrtran.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngrutil.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngset.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngtrans.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngwio.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngwrite.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngwtran.c" />
+    <ClCompile Include="..\..\native\ext\libpng16\pngwutil.c" />
     <ClCompile Include="..\..\native\ext\vjson\block_allocator.cpp" />
     <ClCompile Include="..\..\native\ext\vjson\json.cpp" />
     <ClCompile Include="..\..\native\file\fd_util.cpp" />
@@ -358,6 +373,13 @@
     <ClInclude Include="..\..\native\ext\jpge\jpge.h" />
     <ClInclude Include="..\..\native\ext\sha1\sha1.h" />
     <ClInclude Include="..\..\native\ext\stb_image\stb_image.h" />
+    <ClInclude Include="..\..\native\ext\libpng16\png.h" />
+    <ClInclude Include="..\..\native\ext\libpng16\pngconf.h" />
+    <ClInclude Include="..\..\native\ext\libpng16\pngdebug.h" />
+    <ClInclude Include="..\..\native\ext\libpng16\pnginfo.h" />
+    <ClInclude Include="..\..\native\ext\libpng16\pnglibconf.h" />
+    <ClInclude Include="..\..\native\ext\libpng16\pngpriv.h" />
+    <ClInclude Include="..\..\native\ext\libpng16\pngstruct.h" />
     <ClInclude Include="..\..\native\file\fd_util.h" />
     <ClInclude Include="..\..\native\file\file_util.h" />
     <ClInclude Include="..\..\native\file\ini_file.h" />
