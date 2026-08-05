@@ -478,9 +478,11 @@ int __AudioMix(short *outstereo, int numFrames)
 			if (ringFilled < kRingSamples)
 				ringFilled = std::min(kRingSamples, ringFilled + toCopy);
 
-			// ~3s of continuous audio (streak of 130 buffers) => BGM captured.
+			// ~10s of continuous audio gives both the decode ring and this mix ring
+			// time to fill their 15s windows, so decode_dump and audio_dump end up
+			// covering the SAME wall-clock window (modulo the enqueue latency).
 			// Fallback at 5000 buffers (~2 min) so we never hang forever.
-			if (nonZeroStreak >= 130 || totalBuffers >= 5000) {
+			if (nonZeroStreak >= 430 || totalBuffers >= 5000) {
 				// Raise the shared trigger BEFORE writing so the decode-side ring
 				// dumps the same wall-clock window (both are "last 15s" rings).
 				g_audioDumpTrigger = 1;

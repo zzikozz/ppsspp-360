@@ -71,6 +71,54 @@ struct LinkedListItem : public T
 
 class PointerWrap;
 
+#ifdef _XBOX
+// On the Xbox (big-endian) build, swap_struct_t makes all *_le structs
+// non-POD, which turns any struct containing them into a non-POD type that
+// has no DoState().  Detect DoState() so those fall back to raw bytes while
+// real classes still get proper DoState() serialization.
+namespace SaveStateHelpers {
+	// Old MSVC does not reliably SFINAE a missing member referenced in a
+	// parameter type.  Use the classic ambiguity trick instead: inherit from
+	// both T and a Fallback that also declares DoState.  If T declares DoState
+	// too, the name is ambiguous, the Fallback member pointer cannot be
+	// formed, and the ellipsis overload is selected.
+	template <class T>
+	struct HasDoState
+	{
+		struct Fallback { int DoState; };
+		struct Derived : T, Fallback {};
+
+		template <typename C, C> struct ChT;
+
+		template <typename C>
+		static char (&Check(ChT<int Fallback::*, &C::DoState> *))[1];
+		template <typename C>
+		static char (&Check(...))[2];
+
+		static const bool value = sizeof(Check<Derived>(0)) == 2;
+	};
+
+	// Old MSVC instantiates all function-template overloads during overload
+	// resolution, so dispatching through overloaded function templates here
+	// would compile the DoState() call even for classes without one.  Class
+	// template partial specialization only instantiates the selected branch.
+	template <class T, bool has_do_state>
+	struct DoClassImpl;
+
+	template <class T>
+	struct DoClassImpl<T, true>
+	{
+		static void Do(PointerWrap &p, T &x) { x.DoState(p); }
+	};
+
+	template <class T>
+	struct DoClassImpl<T, false>
+	{
+		static void Do(PointerWrap &p, T &x) { p.DoVoid((void *)&x, sizeof(x)); }
+	};
+}
+#endif
+
 class PointerWrapSection
 {
 public:
@@ -115,13 +163,7 @@ class PointerWrap
 
 		static void Do(PointerWrap *p, T &x)
 		{
-#ifdef _XBOX
-			// On Xbox, swap_struct_t makes all *_le structs non-POD, but DoState()
-			// doesn't exist on most of them.  Treat them as raw bytes (same as POD).
-			p->DoVoid((void *)&x, sizeof(x));
-#else
 			p->DoClass(x);
-#endif
 		}
 	};
 
@@ -449,8 +491,9 @@ public:
 
 	template<class T>
 	void DoClass(T &x) {
-// disabled on xbox caused by endian struct
-#ifndef _XBOX
+#ifdef _XBOX
+		SaveStateHelpers::DoClassImpl<T, SaveStateHelpers::HasDoState<T>::value>::Do(*this, x);
+#else
 		x.DoState(*this);
 #endif
 	}

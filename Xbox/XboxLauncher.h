@@ -24,6 +24,8 @@ public:
 		std::string path;
 		std::string filename;
 		std::string title;
+		bool isDir;
+		bool isGameFile;
 	};
 
 	enum Tab { TAB_RECENT = 0, TAB_GAMES, TAB_COUNT };
@@ -64,6 +66,11 @@ private:
 	void ScanGames();
 	void ScanRecent();
 	void ScanDirs();
+	void PopulateCurrentDir();
+	void EnumerateDevices();
+	bool IsRootDir(const std::string &dir);
+	std::string ParentDir(const std::string &dir);
+	static bool IsGameFile(const char *name);
 	void SaveRecent();
 	void LoadRecent();
 	void LoadSearchDirs();
@@ -85,6 +92,7 @@ private:
 	int  StringWidth(const char *str, int scale);
 
 	// Layout rendering
+	void RenderAnimatedBackground();
 	void RenderTabBar();
 	void RenderGameList();
 	void RenderGrid();
@@ -96,6 +104,7 @@ private:
 	bool active_;
 	bool wantsSettings_;
 	bool scanDone_;
+	std::string currentDir_;
 	std::vector<std::string> searchDirs_;
 	int selectedIndex_;
 	int scrollOffset_;

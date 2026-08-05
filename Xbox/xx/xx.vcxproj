@@ -120,7 +120,7 @@
       <MinimalRebuild>false</MinimalRebuild>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <PreprocessorDefinitions>NO_UNICODE;_DEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NO_UNICODE;_DEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX;WORDS_BIGENDIAN</PreprocessorDefinitions>
       <CallAttributedProfiling>Callcap</CallAttributedProfiling>
       <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native;../../ui;../../ext/zlib</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -146,7 +146,7 @@
       <MinimalRebuild>false</MinimalRebuild>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <PreprocessorDefinitions>NO_UNICODE;_DEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NO_UNICODE;_DEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX;WORDS_BIGENDIAN</PreprocessorDefinitions>
       <CallAttributedProfiling>Callcap</CallAttributedProfiling>
       <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native;../../ext/zlib</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -247,7 +247,7 @@
       <ExceptionHandling>false</ExceptionHandling>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <PreprocessorDefinitions>NO_UNICODE;NDEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NO_UNICODE;NDEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX;WORDS_BIGENDIAN</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native;../../ext/zlib</AdditionalIncludeDirectories>
     </ClCompile>
@@ -278,7 +278,7 @@
       <ExceptionHandling>false</ExceptionHandling>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <PreprocessorDefinitions>NO_UNICODE;NDEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NO_UNICODE;NDEBUG;_XBOX;PPC;BIG_ENDIAN;NO_JIT;USE_DIRECTX;WORDS_BIGENDIAN</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>../../Common;../..;../../Core;../../native/ext/glew;../../native;../../ext/zlib</AdditionalIncludeDirectories>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>

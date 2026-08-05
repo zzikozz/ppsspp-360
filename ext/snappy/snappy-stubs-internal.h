@@ -47,6 +47,14 @@
 
 #include "snappy-stubs-public.h"
 
+// The Xbox 360 port is big-endian (PowerPC) but the build only defines
+// BIG_ENDIAN.  Snappy's LittleEndian helpers key off WORDS_BIGENDIAN; without
+// it the copy offsets and literal lengths are decoded from the wrong bytes on
+// a big-endian host, corrupting decompressed savestates.
+#if defined(BIG_ENDIAN) && !defined(WORDS_BIGENDIAN)
+#define WORDS_BIGENDIAN 1
+#endif
+
 #if defined(__x86_64__) || defined(_M_X64)
 
 // Enable 64-bit optimized versions of some routines.

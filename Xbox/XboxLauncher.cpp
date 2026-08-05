@@ -273,11 +273,6 @@ static std::string ISO_ReadGameTitle(const char *isoPath) {
 	std::string title;
 	if (sfo.ReadSFO(sfoData, (size_t)info.size)) {
 		title = sfo.GetValueString("TITLE");
-		if (!title.empty()) {
-			std::string discId = sfo.GetValueString("DISC_ID");
-			if (!discId.empty())
-				title = discId + " - " + title;
-		}
 	}
 	delete[] sfoData;
 	return title;
@@ -429,10 +424,10 @@ static const int GRID_ICON_H = 64;
 static const int GRID_TITLE_CHARS = (GRID_CELL_W - 8) / 8;
 
 // Right panel — branding, stats, poster, buttons
-static const int RP_BRAND_LOGO_SCALE = 1;
+static const int RP_BRAND_LOGO_SCALE = 2;
 static const int RP_BRAND_SPACING = 12;
 static const int RP_BRAND_TOP = 15;
-static const int RP_VERSION_Y = 120;
+static const int RP_VERSION_Y = 135;
 static const int RP_STATS_TOP = 145;
 static const int RP_STATS_LINE_H = 25;
 static const int RP_DIVIDER_Y = 195;
@@ -570,6 +565,9 @@ void XboxLauncher::Init() {
 	LoadRecent();
 	scanDone_ = false;
 
+	// Start at the game root so the first scan lists game:\
+	currentDir_ = "game:\\";
+
 	// Load assets (fast, no disk scan)
 	unknownTex_ = LoadPNGTexture("game:\\assets\\unknown.png");
 	splashTex_ = LoadPNGTexture("game:\\assets\\splash.png");
@@ -618,55 +616,138 @@ void XboxLauncher::Shutdown() {
 // Game scanning, recent files, directories
 // ---------------------------------------------------------------------------
 
-void XboxLauncher::ScanDirs() {
+void XboxLauncher::PopulateCurrentDir() {
 	allGames_.clear();
-	iconCache_.clear();
 
-	const char *exts[] = { "*.iso", "*.cso", "*.ISO", "*.CSO" };
-
-	// If no saved dirs, scan game:\ root
-	if (searchDirs_.empty())
-		searchDirs_.push_back("game:\\");
-
-	for (size_t d = 0; d < searchDirs_.size(); d++) {
-		for (int e = 0; e < 4; e++) {
-			WIN32_FIND_DATA fd;
-			char search[MAX_PATH];
-			sprintf(search, "%s%s", searchDirs_[d].c_str(), exts[e]);
-
-			HANDLE hFind = FindFirstFile(search, &fd);
-			if (hFind == INVALID_HANDLE_VALUE)
-				continue;
-
-			do {
-				if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-					continue;
-
-				char fullPath[MAX_PATH];
-				sprintf(fullPath, "%s%s", searchDirs_[d].c_str(), fd.cFileName);
-
-				GameEntry entry;
-				entry.path = fullPath;
-				entry.filename = fd.cFileName;
-				entry.title = ISO_ReadGameTitle(fullPath);
-				if (entry.title.empty())
-					entry.title = fd.cFileName;
-
-				bool dup = false;
-				for (size_t i = 0; i < allGames_.size(); i++) {
-					if (_stricmp(allGames_[i].path.c_str(), entry.path.c_str()) == 0) {
-						dup = true;
-						break;
-					}
-				}
-				if (!dup)
-					allGames_.push_back(entry);
-			} while (FindNextFile(hFind, &fd));
-			FindClose(hFind);
-		}
+	// Device root — enumerate available storage devices
+	if (currentDir_.empty()) {
+		EnumerateDevices();
+		return;
 	}
 
-	std::sort(allGames_.begin(), allGames_.end(), CompareGames);
+	// "Go up" item, shown at the top when not at the root
+	if (!IsRootDir(currentDir_)) {
+		GameEntry up;
+		up.path = ParentDir(currentDir_);
+		up.filename = "..";
+		up.title = "..";
+		up.isDir = true;
+		up.isGameFile = false;
+		allGames_.push_back(up);
+	}
+
+	WIN32_FIND_DATA fd;
+	char search[MAX_PATH];
+	sprintf(search, "%s*", currentDir_.c_str());
+	HANDLE hFind = FindFirstFile(search, &fd);
+	if (hFind == INVALID_HANDLE_VALUE)
+		return;
+
+	std::vector<GameEntry> folders;
+	std::vector<GameEntry> files;
+
+	do {
+		if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0)
+			continue;
+
+		if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			char dirPath[MAX_PATH];
+			sprintf(dirPath, "%s%s\\", currentDir_.c_str(), fd.cFileName);
+
+			GameEntry entry;
+			entry.path = dirPath;
+			entry.filename = fd.cFileName;
+			entry.title = fd.cFileName;
+			entry.isDir = true;
+			entry.isGameFile = false;
+			folders.push_back(entry);
+		} else if (IsGameFile(fd.cFileName)) {
+			char fullPath[MAX_PATH];
+			sprintf(fullPath, "%s%s", currentDir_.c_str(), fd.cFileName);
+
+			GameEntry entry;
+			entry.path = fullPath;
+			entry.filename = fd.cFileName;
+			entry.title = ISO_ReadGameTitle(fullPath);
+			if (entry.title.empty())
+				entry.title = fd.cFileName;
+			entry.isDir = false;
+			entry.isGameFile = true;
+			files.push_back(entry);
+		}
+	} while (FindNextFile(hFind, &fd));
+	FindClose(hFind);
+
+	// Folders first (alphabetical), then game files (alphabetical)
+	std::sort(folders.begin(), folders.end(), CompareGames);
+	std::sort(files.begin(), files.end(), CompareGames);
+	for (size_t i = 0; i < folders.size(); i++)
+		allGames_.push_back(folders[i]);
+	for (size_t i = 0; i < files.size(); i++)
+		allGames_.push_back(files[i]);
+}
+
+bool XboxLauncher::IsRootDir(const std::string &dir) {
+	// Empty path is the device root (top level where all storage devices are listed)
+	return dir.empty();
+}
+
+std::string XboxLauncher::ParentDir(const std::string &dir) {
+	std::string d = dir;
+	if (d.empty())
+		return "";
+	// Ensure trailing backslash, then strip the last path component
+	if (d[d.size() - 1] != '\\')
+		d += '\\';
+	// Remove trailing slash(es)
+	while (!d.empty() && d[d.size() - 1] == '\\')
+		d.erase(d.size() - 1);
+	// If this is a root device path (e.g. "game:", "hdd1:", "usb0:"), go up to device root
+	size_t colon = d.find(':');
+	if (colon != std::string::npos && colon == d.size() - 1)
+		return "";
+	size_t pos = d.find_last_of('\\');
+	if (pos == std::string::npos)
+		return "";
+	return d.substr(0, pos + 1);
+}
+
+void XboxLauncher::EnumerateDevices() {
+	// Check for common Xbox 360 storage device paths
+	const char *prefixes[] = { "hdd1", "usb0", "usb1", "usb2", "usb3", "usb4", "usb5", "usb6", "usb7", "usb8", "usb9" };
+
+	for (int i = 0; i < (int)ARRAYSIZE(prefixes); i++) {
+		char path[MAX_PATH];
+		sprintf(path, "%s:\\", prefixes[i]);
+		if (GetFileAttributes(path) != INVALID_FILE_ATTRIBUTES) {
+			GameEntry entry;
+			entry.path = path;
+			entry.filename = prefixes[i];
+			entry.title = prefixes[i];
+			entry.isDir = true;
+			entry.isGameFile = false;
+			allGames_.push_back(entry);
+		}
+	}
+}
+
+bool XboxLauncher::IsGameFile(const char *name) {
+	int len = (int)strlen(name);
+	const char *exts[] = { ".iso", ".cso", ".zip", ".rar" };
+	for (int e = 0; e < 4; e++) {
+		int elen = (int)strlen(exts[e]);
+		if (len >= elen && _stricmp(name + len - elen, exts[e]) == 0)
+			return true;
+	}
+	return false;
+}
+
+void XboxLauncher::ScanDirs() {
+	allGames_.clear();
+
+	PopulateCurrentDir();
+
+	iconCache_.clear();
 
 	// After scanning, switch to Recent tab if we have recent games
 	if (!recentGames_.empty())
@@ -706,6 +787,8 @@ void XboxLauncher::LoadRecent() {
 		entry.title = ISO_ReadGameTitle(line);
 		if (entry.title.empty())
 			entry.title = entry.filename;
+		entry.isDir = false;
+		entry.isGameFile = IsGameFile(entry.filename.c_str());
 
 		bool dup = false;
 		for (size_t i = 0; i < recentGames_.size(); i++) {
@@ -1329,7 +1412,16 @@ void XboxLauncher::Update() {
 		currentTab_ = (currentTab_ == TAB_RECENT) ? TAB_GAMES : TAB_RECENT;
 		selectedIndex_ = 0;
 		scrollOffset_ = 0;
+		rightPanelItem_ = 0;
 		focusRegion_ = FOCUS_GAMES;
+		// Entering the Games tab resets the directory browser to the root.
+		if (currentTab_ == TAB_GAMES) {
+			currentDir_ = "game:\\";
+			PopulateCurrentDir();
+		}
+		// Recent tab is always grid-based; reset any lingering list mode.
+		if (currentTab_ == TAB_RECENT)
+			viewMode_ = VIEW_GRID;
 	}
 
 	// RT = Grid/List toggle (matches hint rect)
@@ -1345,30 +1437,38 @@ void XboxLauncher::Update() {
 	// A button = launch game (only in FOCUS_GAMES)
 	if ((pressed & XINPUT_GAMEPAD_A) && focusRegion_ == FOCUS_GAMES) {
 		if (count > 0 && selectedIndex_ >= 0 && selectedIndex_ < count) {
-			const std::string &path = (currentTab_ == TAB_RECENT)
-				? recentGames_[selectedIndex_].path
-				: allGames_[selectedIndex_].path;
-			selectedGame_ = path;
+			const GameEntry &entry = (currentTab_ == TAB_RECENT)
+				? recentGames_[selectedIndex_]
+				: allGames_[selectedIndex_];
 
-			GameEntry entry;
-			entry.path = path;
-			const char *slash = strrchr(path.c_str(), '\\');
-			if (!slash) slash = strrchr(path.c_str(), '/');
-			entry.filename = slash ? slash + 1 : path.c_str();
-			entry.title = ISO_ReadGameTitle(path.c_str());
-			if (entry.title.empty())
-				entry.title = entry.filename;
+			// Directory navigation (Games tab only)
+			if (currentTab_ == TAB_GAMES && entry.isDir) {
+				currentDir_ = entry.path;
+				PopulateCurrentDir();
+				selectedIndex_ = 0;
+				scrollOffset_ = 0;
+			} else {
+			selectedGame_ = entry.path;
+			const char *slash = strrchr(entry.path.c_str(), '\\');
+				if (!slash) slash = strrchr(entry.path.c_str(), '/');
+				GameEntry recentEntry;
+				recentEntry.path = entry.path;
+				recentEntry.filename = slash ? slash + 1 : entry.path.c_str();
+				recentEntry.title = entry.title;
+				recentEntry.isDir = false;
+				recentEntry.isGameFile = IsGameFile(recentEntry.filename.c_str());
 
-			for (size_t i = 0; i < recentGames_.size(); i++) {
-				if (_stricmp(recentGames_[i].path.c_str(), path.c_str()) == 0) {
-					recentGames_.erase(recentGames_.begin() + i);
-					break;
+				for (size_t i = 0; i < recentGames_.size(); i++) {
+					if (_stricmp(recentGames_[i].path.c_str(), entry.path.c_str()) == 0) {
+						recentGames_.erase(recentGames_.begin() + i);
+						break;
+					}
 				}
-			}
-			recentGames_.insert(recentGames_.begin(), entry);
-			SaveRecent();
+				recentGames_.insert(recentGames_.begin(), recentEntry);
+				SaveRecent();
 
-			active_ = false;
+				active_ = false;
+			}
 		}
 	}
 
@@ -1378,10 +1478,7 @@ void XboxLauncher::Update() {
 		active_ = false;
 	}
 
-	// Back button = add directory and rescan
-	if (pressed & XINPUT_GAMEPAD_BACK) {
-		BrowseDirectories();
-	}
+	// BACK button is intentionally ignored so it cannot restart/exit the app.
 }
 
 // ---------------------------------------------------------------------------
@@ -1599,11 +1696,19 @@ void XboxLauncher::RenderTabBar() {
 	for (int t = 0; t < TAB_COUNT; t++) {
 		float tw = (float)(StringWidth(tabNames[t], SCALE_LARGE) + 30);
 		int count = (t == TAB_RECENT) ? (int)recentGames_.size() : (int)allGames_.size();
+		if (t == TAB_GAMES) {
+			int gameCount = 0;
+			for (int i = 0; i < (int)allGames_.size(); i++) {
+				if (!allGames_[i].isDir) gameCount++;
+			}
+			count = gameCount;
+		}
 
 		char badge[16];
-		sprintf(badge, "%d", count);
+		sprintf(badge, "(%d)", count);
 		float badgeW = (float)StringWidth(badge, SCALE_SMALL);
-		float totalW = tw + (float)TAB_BADGE_OFF + badgeW;
+		float rightPad = 8.0f;
+		float totalW = tw + (float)TAB_BADGE_OFF + badgeW + rightPad;
 
 		if (t == currentTab_) {
 			DWORD tabBg = (focusRegion_ == FOCUS_TABS) ? COL_C2 : COL_C1;
@@ -1612,10 +1717,10 @@ void XboxLauncher::RenderTabBar() {
 			DrawRect(x, barTop, x + totalW, barBot, COL_C0);
 		}
 
-		DrawString(tabNames[t], (int)(x + tabTextPad), (int)((TAB_H - FONT_H_LARGE) / 2), SCALE_LARGE,
-			t == currentTab_ ? COL_TAB_TEXT : COL_ITEM_DIM);
+		DWORD tabTextColor = (t == currentTab_) ? COL_TAB_TEXT : COL_ITEM_DIM;
+		DrawString(tabNames[t], (int)(x + tabTextPad), (int)((TAB_H - FONT_H_LARGE) / 2), SCALE_LARGE, tabTextColor);
 
-		DrawString(badge, (int)(x + tw + (float)TAB_BADGE_OFF), (int)((TAB_H - FONT_H_SMALL) / 2), SCALE_SMALL, COL_HINT);
+		DrawString(badge, (int)(x + tw + (float)TAB_BADGE_OFF), (int)((TAB_H - FONT_H_SMALL) / 2), SCALE_SMALL, tabTextColor);
 
 		x += totalW;
 	}
@@ -1653,31 +1758,42 @@ void XboxLauncher::RenderListItem(int gameIdx, float y, bool isSelected) {
 	// Item background
 	DrawRect(x0 - 5, y, x1, y + h, isSelected ? COL_C2 : COL_C0);
 
-	// Try to load game cover (PIC1.PNG poster)
-	IDirect3DTexture9 *cover = GetOrCreatePoster(entry.path);
-	if (!cover)
-		cover = GetOrCreateIcon(entry.path);
+	// I_DIR_LINE = folder icon, I_UP_DIRECTORY = up/back arrow for parent ("..").
 	float textX = x0 + 8;
+	if (entry.isDir) {
+		if (zimTex_) {
+			const AtlasImage &img = ui_atlas.images[(entry.filename == "..") ? I_UP_DIRECTORY : I_DIR_LINE];
+			float iconSize = h;
+			DrawTextureAtlas(zimTex_, img, x0 + 4, y, iconSize, iconSize);
+			textX = x0 + 4 + iconSize + 12;
+		}
+	} else {
+		IDirect3DTexture9 *cover = GetOrCreatePoster(entry.path);
+		if (!cover)
+			cover = GetOrCreateIcon(entry.path);
+		if (!cover)
+			cover = unknownTex_;
 
 		if (cover) {
-		D3DSURFACE_DESC desc;
-		cover->GetLevelDesc(0, &desc);
-		float texW = (float)desc.Width;
-		float texH = (float)desc.Height;
-		if (texW < 1) texW = 1;
-		if (texH < 1) texH = 1;
+			D3DSURFACE_DESC desc;
+			cover->GetLevelDesc(0, &desc);
+			float texW = (float)desc.Width;
+			float texH = (float)desc.Height;
+			if (texW < 1) texW = 1;
+			if (texH < 1) texH = 1;
 
-		float coverH = h;
-		float coverW = coverH * (texW / texH);
-		if (coverW < 1) coverW = 1;
-		if (coverH < 1) coverH = 1;
+			float coverH = h;
+			float coverW = coverH * (texW / texH);
+			if (coverW < 1) coverW = 1;
+			if (coverH < 1) coverH = 1;
 
-		float coverX = x0 + 4;
-		float coverY = y;
+			float coverX = x0 + 4;
+			float coverY = y;
 
-		DrawTexture(cover, coverX, coverY, coverW, coverH);
+			DrawTexture(cover, coverX, coverY, coverW, coverH);
 
-		textX = coverX + coverW + 12;
+			textX = coverX + coverW + 12;
+		}
 	}
 
 	// Game title
@@ -1706,10 +1822,20 @@ void XboxLauncher::RenderGameList() {
 	float sx = (float)COL_LEFT_X;
 
 	if (count == 0) {
-		const char *msg = (currentTab_ == TAB_RECENT)
-			? "No recent games" : "No games found on game:\\";
+		char msg[256];
+		if (currentTab_ == TAB_RECENT) {
+			sprintf(msg, "No recent games");
+		} else {
+			sprintf(msg, "No compatible games found on %s", currentDir_.c_str());
+		}
 		DrawStringCentered(msg, SCREEN_H / 2 - 20, SCALE_MED, COL_HINT);
-		DrawStringCentered("Place .iso or .cso files on game:\\", SCREEN_H / 2 + 20, SCALE_SMALL, COL_HINT);
+		if (currentTab_ == TAB_GAMES) {
+			char hint[256];
+			sprintf(hint, "Place .iso/.cso/.zip/.rar files on %s", currentDir_.c_str());
+			DrawStringCentered(hint, SCREEN_H / 2 + 20, SCALE_SMALL, COL_HINT);
+		} else {
+			DrawStringCentered("No recent games", SCREEN_H / 2 + 20, SCALE_SMALL, COL_HINT);
+		}
 		return;
 	}
 
@@ -1765,15 +1891,28 @@ void XboxLauncher::RenderGridItem(int gameIdx, float x, float y, bool isSelected
 			shadowCol, 1.0f);
 	}
 
-	// Try to load icon
-	IDirect3DTexture9 *icon = GetOrCreateIcon(entry.path);
+	// I_DIR_LINE = folder icon, I_UP_DIRECTORY = up/back arrow for parent ("..").
+	if (entry.isDir) {
+		if (zimTex_) {
+			const AtlasImage &img = ui_atlas.images[(entry.filename == "..") ? I_UP_DIRECTORY : I_DIR_LINE];
+			float iconW = cw - pad * 2;
+			float iconH = ch - pad * 2;
+			DrawTextureAtlas(zimTex_, img, x + pad, y + pad, iconW, iconH);
+		}
+	} else {
+		IDirect3DTexture9 *icon = GetOrCreatePoster(entry.path);
+		if (!icon)
+			icon = GetOrCreateIcon(entry.path);
+		if (!icon)
+			icon = unknownTex_;
 
-	if (icon) {
-		float iconW = cw - pad * 2;
-		float iconH = ch - pad * 2;
-		float iconX = x + pad;
-		float iconY = y + pad;
-		DrawTexture(icon, iconX, iconY, iconW, iconH);
+		if (icon) {
+			float iconW = cw - pad * 2;
+			float iconH = ch - pad * 2;
+			float iconX = x + pad;
+			float iconY = y + pad;
+			DrawTexture(icon, iconX, iconY, iconW, iconH);
+		}
 	}
 }
 
@@ -1849,21 +1988,26 @@ void XboxLauncher::RenderRightPanel() {
 		DrawTextureAtlas(zimTex_, logo, logoX, logoY, logoW, logoH);
 	}
 
-	// Version text
-	DrawStringCentered("PPSSPP v0.9.6b - Xbox 360", RP_VERSION_Y, SCALE_SMALL, COL_HINT);
+	// Version text, left-aligned to the right-panel separating divider line
+	DrawString("PPSSPP v0.9.6b - Xbox 360", (int)(x0 + inset), RP_VERSION_Y, SCALE_SMALL, COL_HINT);
 
 	// Divider
 	DrawRect(x0 + (float)RCOL_PAD.l, (float)RP_DIVIDER_Y,
 	         x1 - (float)RCOL_PAD.l, (float)(RP_DIVIDER_Y + RP_DIVIDER_H), COL_DIVIDER);
 
-	// Game poster (PIC1.PNG from selected game)
+	// Game poster (PIC1.PNG from selected game, with fallback icon/default)
 	{
 		int count = (currentTab_ == TAB_RECENT) ? (int)recentGames_.size() : (int)allGames_.size();
 		if (count > 0 && selectedIndex_ >= 0 && selectedIndex_ < count) {
 			const std::string &selPath = (currentTab_ == TAB_RECENT)
 				? recentGames_[selectedIndex_].path
 				: allGames_[selectedIndex_].path;
+			// Poster first; fall back to ICON0.PNG, then the unknown placeholder.
 			IDirect3DTexture9 *poster = GetOrCreatePoster(selPath);
+			if (!poster)
+				poster = GetOrCreateIcon(selPath);
+			if (!poster)
+				poster = unknownTex_;
 			if (poster) {
 				float posterW = panelW - (float)(RCOL_PAD.l * 2);
 				float posterH = (float)RP_POSTER_H;
@@ -2050,12 +2194,12 @@ void XboxLauncher::RenderInGameMenu() {
 
 	EnsureResources();
 
-	// Full-screen dimming overlay (behind menu)
-	DrawRect(0, 0, (float)SCREEN_W, (float)SCREEN_H, 0xA0000000);
+	// In-game menu background (same animated style as the main menu)
+	RenderAnimatedBackground();
 
 	int totalSlots = SaveState::SAVESTATESLOTS; // 5
 	float leftX = 100.0f;
-	float leftW = 400.0f;
+	float leftW = 560.0f;
 	float rightX = leftX + leftW + 80.0f;
 	float rightW = 500.0f;
 	float menuY = 100.0f;
@@ -2068,6 +2212,7 @@ void XboxLauncher::RenderInGameMenu() {
 
 	// Right panel background
 	DrawRect(rightX, menuY, rightX + rightW, menuY + totalH, COL_C0);
+	DrawRect(rightX, menuY, rightX + 2, menuY + totalH, COL_C1);
 
 	// Left panel items (save/load state slots)
 	for (int i = 0; i < totalSlots; i++) {
@@ -2076,7 +2221,9 @@ void XboxLauncher::RenderInGameMenu() {
 		bool sel = (inGameMenuFocus_ == INGMENU_LEFT && inGameMenuSel_ == i);
 		bool hasSave = SaveState::HasSaveInSlot(i);
 
-		if (sel) DrawRect(leftX + 4, y, leftX + leftW - 4, y + h, COL_C2);
+		// Same selected/not-selected pattern as the main menu right panel
+		DWORD bg = sel ? COL_C2 : COL_C0;
+		DrawRect(leftX + 4, y, leftX + leftW - 4, y + h, bg);
 
 		char label[64];
 		if (hasSave)
@@ -2084,7 +2231,7 @@ void XboxLauncher::RenderInGameMenu() {
 		else
 			sprintf(label, "Slot %d (empty)   (A:Save)", i + 1);
 
-		DrawString(label, (int)leftX + 12, (int)y + (int)(h - FONT_H_SMALL) / 2, SCALE_SMALL, sel ? 0xFFFFFFFF : COL_TAB_TEXT);
+		DrawString(label, (int)leftX + 12, (int)y + (int)(h - FONT_H_SMALL) / 2, SCALE_SMALL, COL_TAB_TEXT);
 	}
 
 	// Right panel items
@@ -2093,9 +2240,11 @@ void XboxLauncher::RenderInGameMenu() {
 		float h = itemH - 8.0f;
 		bool sel = (inGameMenuFocus_ == INGMENU_RIGHT && inGameMenuSel_ == i);
 
-		if (sel) DrawRect(rightX + 4, y, rightX + rightW - 4, y + h, COL_C2);
+		// Same selected/not-selected pattern as the main menu right panel
+		DWORD bg = sel ? COL_C2 : COL_C0;
+		DrawRect(rightX + 4, y, rightX + rightW - 4, y + h, bg);
 
-		DrawString(ingMenuLabelsR[i], (int)rightX + 12, (int)y + (int)(h - FONT_H_SMALL) / 2, SCALE_SMALL, sel ? 0xFFFFFFFF : COL_TAB_TEXT);
+		DrawString(ingMenuLabelsR[i], (int)rightX + 12, (int)y + (int)(h - FONT_H_SMALL) / 2, SCALE_SMALL, COL_TAB_TEXT);
 	}
 
 	// Bottom hints
@@ -2103,6 +2252,31 @@ void XboxLauncher::RenderInGameMenu() {
 	DrawString("D-Pad: Navigate   A: Save   X: Load   Y: Delete   B: Close Menu", (int)leftX, (int)hintY, SCALE_SMALL, COL_TAB_TEXT);
 
 	RenderToast();
+}
+
+// ---------------------------------------------------------------------------
+// Animated background (shared with the in-game menu)
+// ---------------------------------------------------------------------------
+
+void XboxLauncher::RenderAnimatedBackground() {
+	DrawRect(0, 0, (float)SCREEN_W, (float)SCREEN_H, COL_BG);
+
+	if (zimTex_) {
+		const AtlasImage &bg = ui_atlas.images[I_BG];
+		DrawTextureAtlas(zimTex_, bg, 0, 0, (float)SCREEN_W, (float)SCREEN_H);
+
+		static const int symbols[4] = { I_CROSS, I_CIRCLE, I_SQUARE, I_TRIANGLE };
+		float t = (float)(real_time_now() - (double)startTime_);
+		float symSize = BG_SYM_SIZE;
+		for (int i = 0; i < BG_SYM_COUNT; i++) {
+			float x = symX_[i];
+			float y = symY_[i] + 40.0f * cos((double)i * 7.2 + (double)t * 1.3);
+			float angle = (float)sin((double)i + (double)t);
+			int n = i & 3;
+			const AtlasImage &sym = ui_atlas.images[symbols[n]];
+			DrawTextureAtlasRotated(zimTex_, sym, x, y, symSize, symSize, angle, 0x20FFFFFF);
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -2139,26 +2313,7 @@ void XboxLauncher::Render() {
 	pD3Ddevice->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 
 	// Animated background (like Windows PPSSPP)
-	{
-		DrawRect(0, 0, (float)SCREEN_W, (float)SCREEN_H, COL_BG);
-
-		if (zimTex_) {
-			const AtlasImage &bg = ui_atlas.images[I_BG];
-			DrawTextureAtlas(zimTex_, bg, 0, 0, (float)SCREEN_W, (float)SCREEN_H);
-
-			static const int symbols[4] = { I_CROSS, I_CIRCLE, I_SQUARE, I_TRIANGLE };
-			float t = (float)(real_time_now() - (double)startTime_);
-			float symSize = BG_SYM_SIZE;
-			for (int i = 0; i < BG_SYM_COUNT; i++) {
-				float x = symX_[i];
-				float y = symY_[i] + 40.0f * cos((double)i * 7.2 + (double)t * 1.3);
-				float angle = (float)sin((double)i + (double)t);
-				int n = i & 3;
-				const AtlasImage &sym = ui_atlas.images[symbols[n]];
-                DrawTextureAtlasRotated(zimTex_, sym, x, y, symSize, symSize, angle, 0x20FFFFFF);
-			}
-		}
-	}
+	RenderAnimatedBackground();
 
 	// Tab bar
 	RenderTabBar();

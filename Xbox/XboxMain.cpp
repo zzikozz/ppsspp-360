@@ -414,6 +414,13 @@ int main(int argc, const char* argv[])
 					launcher.SetInGameMenuActive(true);
 				}
 
+				// Fast forward: RB + RT, matching PPSSPP's fast-forward.
+				// Unthrottling the emulator (which DoFrameTiming respects) makes
+				// it run as fast as the CPU can go, and only while held.
+				bool ffHeld = (igmButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER)
+					&& igmRT > XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+				PSP_CoreParameter().unthrottle = ffHeld;
+
 				if (launcher.IsInGameMenuActive()) {
 					launcher.UpdateInGameMenu(igmButtons);
 					launcher.RenderInGameMenu();

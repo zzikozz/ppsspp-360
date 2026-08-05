@@ -61,13 +61,7 @@ int NativeMix(short *audio, int num_samples) {
         memset(audio, 0, num_samples * 2 * sizeof(short));
     }
 
-    // XAudio2 on Xbox 360 expects native big-endian PCM.
-    // The PSP audio pipeline produces little-endian s16 (bswap16 applied
-    // before writing to PSP memory), so we must byte-swap before submitting.
-    unsigned short * ptr = (unsigned short*)audio;
-    for (int i = 0; i < num_samples; i++) {
-        ptr[i] = _byteswap_ushort(ptr[i]);
-    }
+    // PSP audio pipeline already produces native-endian s16 for XAudio2 on Xbox 360.
 
     return num_samples;
 }
@@ -85,7 +79,7 @@ void XAudioInit(PMixer *mixer) {
         return;
     }
 
-    if (FAILED(lpXAudio2->CreateMasteringVoice(&lpMasterVoice, 2, 48000, 0, 0, NULL))) {
+    if (FAILED(lpXAudio2->CreateMasteringVoice(&lpMasterVoice, 2, 44100, 0, 0, NULL))) {
         XAudioShutdown();
         return;
     }
